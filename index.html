@@ -457,9 +457,32 @@
   }
   #suggestions a:hover { background-color: #f8fafc; }
   #suggestions a:last-child { border-bottom: none; }
+  /* Index loading overlay */
+  #idx-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(248, 250, 252, 0.92);
+    backdrop-filter: blur(6px);
+    transition: opacity 0.4s ease;
+  }
+  #idx-overlay.fade-out { opacity: 0; pointer-events: none; }
+  #idx-overlay.hidden { display: none; }
+  .idx-box { width: 260px; text-align: center; }
+  .idx-box h2 { font-size: 1.35rem; font-weight: 800; color: #1e293b; margin-bottom: 1.4rem; letter-spacing: -0.02em; }
+  .idx-track { height: 4px; background: #e2e8f0; border-radius: 9999px; overflow: hidden; }
+  #idx-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#6366f1,#818cf8); border-radius: 9999px; transition: width 0.25s ease; }
+  .idx-hint { margin-top: 0.6rem; font-size: 0.72rem; color: #94a3b8; font-weight: 500; letter-spacing: 0.04em; }
 </style>
 </head>
 <body>
+
+<div id="idx-overlay">
+  <div class="idx-box">
+    <h2>廉政透明平台</h2>
+    <div class="idx-track"><div id="idx-bar"></div></div>
+    <div class="idx-hint">載入資料中</div>
+  </div>
+</div>
 
 <main class="max-w-md md:max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
 
@@ -653,11 +676,43 @@
     applyFilters();
   }
 
+  function setIdxBar(pct) {
+    pct = Math.min(100, Math.max(0, Math.round(pct)));
+    const bar = document.getElementById('idx-bar');
+    const overlay = document.getElementById('idx-overlay');
+    if (bar) bar.style.width = `${pct}%`;
+    if (pct >= 100 && overlay) {
+      overlay.classList.add('fade-out');
+      setTimeout(() => overlay.classList.add('hidden'), 430);
+    }
+  }
+
   async function loadPoliticians() {
     try {
       const t0 = performance.now();
       const response = await fetch(DATA_URL);
-      const data = await response.json();
+      const contentLength = response.headers.get('Content-Length');
+      let data;
+      if (contentLength && response.body) {
+        const total = parseInt(contentLength, 10);
+        const reader = response.body.getReader();
+        const chunks = [];
+        let loaded = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          setIdxBar(Math.round(loaded / total * 88));
+        }
+        const buf = new Uint8Array(loaded);
+        let pos = 0;
+        for (const c of chunks) { buf.set(c, pos); pos += c.length; }
+        data = JSON.parse(new TextDecoder().decode(buf));
+      } else {
+        setIdxBar(40);
+        data = await response.json();
+      }
       allPoliticians = data.politicians || [];
       const ms = Math.round(performance.now() - t0);
       console.log(`Loaded ${allPoliticians.length} politicians in ${ms}ms`);
@@ -713,9 +768,11 @@
         }
       } catch (e) { console.warn('restore listState failed:', e); }
       if (!restored) applyFilters();
+      setIdxBar(100);
     } catch (error) {
       console.error('Error loading:', error);
       document.getElementById('listCount').textContent = '資料載入失敗';
+      setIdxBar(100);
     }
   }
 
@@ -1203,7 +1260,8 @@
     const start = (currentPage - 1) * PAGE_SIZE;
     const visible = filteredPoliticians.slice(start, start + PAGE_SIZE);
 
-    tbody.innerHTML = visible.map(p => {
+    tbody.innerHTML = visible.map((p, i) => {
+      const rank = start + i + 1;
       const ctype = getOrgCategory(p);
       const avCls = ({'中央機關':'av-central','地方機關':'av-local','民意代表':'av-council','公營事業':'av-soe'}[ctype]) || 'av-other';
       const firstChar = (p.name || '?').replace(/\s|[A-Za-z·．‧・.]/g,'')[0] || '?';
@@ -1217,7 +1275,7 @@
           <div class="${avCls} w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0">${firstChar}</div>
           <div class="flex-1 min-w-0">
             <div class="flex items-baseline justify-between gap-2">
-              <span class="font-semibold text-slate-900 text-[16px] truncate">${p.name}</span>
+              <span class="font-semibold text-slate-900 text-[16px] truncate"><span class="text-slate-300 font-normal text-xs mr-1">#${rank}</span>${p.name}</span>
               <span class="num font-bold text-indigo-600 text-[18px] shrink-0">${amount.num}<span class="text-xs ml-0.5 text-indigo-400">${amount.unit}</span></span>
             </div>
             <div class="mt-2 flex items-center justify-between gap-2">
