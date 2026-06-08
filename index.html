@@ -472,6 +472,291 @@
   .idx-track { height: 4px; background: #e2e8f0; border-radius: 9999px; overflow: hidden; }
   #idx-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#6366f1,#818cf8); border-radius: 9999px; transition: width 0.25s ease; }
   .idx-hint { margin-top: 0.6rem; font-size: 0.72rem; color: #94a3b8; font-weight: 500; letter-spacing: 0.04em; }
+/* ── 排行榜 ── */
+  #lbModal {
+    position: fixed; inset: 0; z-index: 1200;
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  #lbModal.lb-open { opacity: 1; pointer-events: auto; }
+  #lbPanel {
+    background: #f8fafc;
+    border-radius: 28px 28px 0 0;
+    width: 100%; max-height: 92dvh;
+    overflow: hidden; display: flex; flex-direction: column;
+    transform: translateY(60px);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 -8px 40px rgba(15,23,42,0.18);
+  }
+  #lbModal.lb-open #lbPanel { transform: translateY(0); }
+  @media (min-width: 768px) {
+    #lbModal { align-items: center; padding: 16px; }
+    #lbPanel { border-radius: 24px; max-width: 860px; max-height: 88dvh; transform: scale(0.94); }
+    #lbModal.lb-open #lbPanel { transform: scale(1); }
+  }
+  .lb-header {
+    background: white; padding: 20px 20px 0;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+  }
+  .lb-scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+  /* 財產 / 個股 tab 切換 */
+  .lb-tab-bar { display: flex; gap: 6px; margin-bottom: 0; }
+  .lb-tab {
+    padding: 8px 20px; border-radius: 12px 12px 0 0;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    color: #64748b; background: transparent; border: none;
+    transition: color 0.15s, background 0.15s;
+  }
+  .lb-tab.active { color: #4F46E5; background: #f8fafc; }
+
+  /* 類別 chips */
+  .lb-org-chips { display: flex; gap: 6px; overflow-x: auto; padding: 14px 16px 0; scrollbar-width: none; }
+  .lb-org-chip {
+    flex-shrink: 0; padding: 5px 14px; border-radius: 9999px;
+    font-size: 12px; font-weight: 500; cursor: pointer; border: none;
+    background: white; color: #64748b;
+    box-shadow: 0 1px 4px rgba(15,23,42,0.08);
+    transition: all 0.15s;
+  }
+  .lb-org-chip.active { background: #4F46E5; color: white; box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+
+  /* 卡片輪播 */
+  .lb-carousel-outer {
+    position: relative; padding: 20px 0 8px;
+    overflow: hidden;
+  }
+  .lb-carousel-viewport {
+    overflow: visible; display: flex; justify-content: center; align-items: center;
+    height: 240px;
+  }
+  .lb-carousel-track {
+    display: flex; align-items: center; gap: 16px;
+    transition: transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+  .lb-card-wrap {
+    flex-shrink: 0; width: 180px;
+    transition: transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94),
+                opacity 0.38s ease, filter 0.38s ease;
+    cursor: pointer;
+  }
+  .lb-card-wrap.lb-active { transform: scale(1.08); z-index: 2; }
+  .lb-card-wrap:not(.lb-active) { transform: scale(0.84); opacity: 0.55; filter: blur(0.5px); }
+  .lb-card-inner {
+    background: white; border-radius: 22px;
+    padding: 22px 16px 18px;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(15,23,42,0.10), 0 2px 8px rgba(15,23,42,0.06);
+    transition: box-shadow 0.2s;
+  }
+  .lb-card-wrap.lb-active .lb-card-inner {
+    box-shadow: 0 16px 48px rgba(15,23,42,0.16), 0 4px 12px rgba(15,23,42,0.08);
+  }
+
+  /* 3D 風格圖示 */
+  .lb-icon-stage {
+    width: 96px; height: 96px; margin: 0 auto 12px;
+    position: relative;
+  }
+  .lb-icon-base {
+    width: 96px; height: 96px; border-radius: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 44px;
+    position: relative;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .lb-icon-base::after {
+    content: '';
+    position: absolute; bottom: -6px; left: 6px; right: 6px;
+    height: 6px; border-radius: 0 0 14px 14px;
+    background: rgba(0,0,0,0.15);
+  }
+  .lb-icon-base.net  { background: linear-gradient(145deg, #99F6E4, #0D9488); }
+  .lb-icon-base.dep  { background: linear-gradient(145deg, #FDE68A, #F59E0B); }
+  .lb-icon-base.sec  { background: linear-gradient(145deg, #6EE7B7, #10B981); }
+  .lb-icon-base.re   { background: linear-gradient(145deg, #A5B4FC, #6366F1); }
+  .lb-icon-base.debt { background: linear-gradient(145deg, #FCA5A5, #EF4444); }
+
+  .lb-card-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .lb-card-sub   { font-size: 11px; color: #94a3b8; }
+
+  /* 輪播箭頭 */
+  .lb-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer;
+    background: white; box-shadow: 0 2px 12px rgba(15,23,42,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: #475569; z-index: 10;
+    transition: box-shadow 0.15s, background 0.15s;
+  }
+  .lb-arrow:hover { background: #f1f5f9; box-shadow: 0 4px 16px rgba(15,23,42,0.16); }
+  .lb-arrow-left  { left: 12px; }
+  .lb-arrow-right { right: 12px; }
+
+  /* 「進入排行」按鈕 */
+  .lb-enter-btn {
+    display: block; margin: 6px 16px 16px; padding: 12px;
+    background: #4F46E5; color: white; border: none; border-radius: 14px;
+    font-size: 14px; font-weight: 600; cursor: pointer; text-align: center;
+    box-shadow: 0 4px 16px rgba(79,70,229,0.30);
+    transition: background 0.15s, transform 0.1s;
+  }
+  .lb-enter-btn:active { transform: scale(0.98); }
+  .lb-enter-btn:hover  { background: #4338CA; }
+
+  /* 排名清單 */
+  .lb-rank-area { padding: 0 14px 20px; }
+  .lb-rank-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 0 10px;
+  }
+  .lb-rank-back {
+    display: flex; align-items: center; gap: 5px;
+    padding: 7px 14px; border-radius: 10px; border: none;
+    background: #f1f5f9; color: #475569; cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    flex-shrink: 0; transition: background 0.15s;
+  }
+  .lb-rank-back:hover { background: #e2e8f0; }
+  .lb-rank-title { font-size: 16px; font-weight: 700; color: #0f172a; }
+  .lb-rank-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 12px; margin-bottom: 4px;
+    background: white; box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+    cursor: pointer; transition: box-shadow 0.15s;
+    text-decoration: none; color: inherit;
+  }
+  .lb-rank-row:hover { box-shadow: 0 4px 16px rgba(15,23,42,0.10); }
+  .lb-rank-num {
+    width: 24px; text-align: center; font-size: 13px; font-weight: 700;
+    color: #cbd5e1; flex-shrink: 0;
+  }
+  .lb-rank-num.top1 { color: #F59E0B; }
+  .lb-rank-num.top2 { color: #94A3B8; }
+  .lb-rank-num.top3 { color: #CD7C54; }
+  .lb-rank-avatar {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700; color: white;
+  }
+  .lb-rank-info { flex: 1; min-width: 0; }
+  .lb-rank-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .lb-rank-org  { font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-rank-val  { font-size: 14px; font-weight: 700; color: #4F46E5; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+  /* 分頁 */
+  .lb-pagination {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 12px 0 4px;
+  }
+  .lb-page-btn {
+    min-width: 36px; height: 36px; padding: 0 10px; border-radius: 10px; border: none;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    background: white; color: #475569;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+    transition: background 0.15s;
+  }
+  .lb-page-btn.active { background: #4F46E5; color: white; box-shadow: 0 4px 12px rgba(79,70,229,0.25); }
+  .lb-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* 個股 tab */
+  .lb-stock-search-wrap {
+    padding: 14px 16px 0; position: relative;
+  }
+  .lb-stock-input {
+    width: 100%; padding: 10px 14px; border-radius: 12px;
+    border: 1.5px solid #e2e8f0; font-size: 14px; background: white;
+    outline: none; transition: border-color 0.15s;
+  }
+  .lb-stock-input:focus { border-color: #6366F1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+  .lb-stock-suggestions {
+    position: absolute; top: calc(100% + 4px); left: 16px; right: 16px; z-index: 10;
+    background: white; border-radius: 14px; border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.12);
+    max-height: 320px; overflow-y: auto; display: none;
+  }
+  .lb-stock-suggestions.open { display: block; }
+  .lb-stock-sug-item {
+    padding: 10px 14px; font-size: 13px; cursor: pointer; color: #1e293b;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.1s;
+  }
+  .lb-stock-sug-item:last-child { border-bottom: none; }
+  .lb-stock-sug-item:hover { background: #f8fafc; }
+  .lb-stock-sug-item.selected-stock { background: #EEF2FF; color: #4F46E5; font-weight: 600; }
+  .lb-stock-loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
+
+  /* 注音聲符篩選 */
+  .lb-bpmf-wrap { padding: 10px 16px 4px; }
+  .lb-bpmf-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+  .lb-bpmf-btn {
+    min-width: 28px; padding: 4px 7px; border-radius: 7px; border: none;
+    font-size: 13px; font-weight: 500; cursor: pointer; text-align: center;
+    background: white; color: #64748b;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.07);
+    transition: all 0.12s;
+  }
+  .lb-bpmf-btn.active { background: #4F46E5; color: white; box-shadow: 0 3px 10px rgba(79,70,229,0.28); }
+  .lb-bpmf-count { font-size: 10px; opacity: 0.55; margin-left: 3px; }
+
+  /* ── 個股篩選按鈕（搜尋列右側） ── */
+  .lb-sfbtn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 14px; height: 44px; border-radius: 12px;
+    border: 1.5px solid #e2e8f0; background: white;
+    font-size: 13px; font-weight: 600; color: #475569;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .lb-sfbtn--active { border-color: #4F46E5; background: #EEF2FF; color: #4F46E5; }
+
+  /* ── 個股篩選彈出卡片 ── */
+  #lbSFOverlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.45); z-index: 1201;
+    opacity: 0; transition: opacity 0.25s ease;
+  }
+  #lbSFOverlay.visible { opacity: 1; }
+  #lbSFSheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1202;
+    background: white; border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.15);
+    transform: translateY(110%);
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+    max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  #lbSFSheet.lb-sf-open { transform: translateY(0); }
+  @media (min-width: 768px) {
+    #lbSFSheet {
+      left: 50%; right: auto; bottom: auto; top: 50%;
+      transform: translate(-50%, -50%) scale(0.94);
+      opacity: 0; pointer-events: none;
+      width: 440px; max-height: 72vh; border-radius: 20px;
+    }
+    #lbSFSheet.lb-sf-open {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1; pointer-events: auto;
+    }
+  }
+  .lb-sf-handle { width: 36px; height: 4px; background: #cbd5e1; border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
+  @media (min-width: 768px) { .lb-sf-handle { display: none; } }
+  .lb-sf-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 12px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+  .lb-sf-header h3 { font-size: 16px; font-weight: 700; color: #0f172a; }
+  .lb-sf-close { background: #f1f5f9; color: #64748b; border: none; width: 30px; height: 30px; border-radius: 8px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .lb-sf-body { padding: 18px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+  .lb-sf-section-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: block; }
+  .lb-sf-stock-list { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; max-height: 280px; overflow-y: auto; }
+  .lb-sf-stock-item { display: flex; justify-content: space-between; align-items: center; padding: 11px 14px; font-size: 13px; color: #1e293b; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid #f1f5f9; }
+  .lb-sf-stock-item:last-child { border-bottom: none; }
+  .lb-sf-stock-item:hover { background: #f8fafc; }
+  .lb-sf-stock-item.lb-sf-sel { background: #EEF2FF; color: #4F46E5; font-weight: 700; }
+  .lb-sf-stock-count { font-size: 11px; color: #94a3b8; }
+  .lb-sf-placeholder { padding: 24px; text-align: center; color: #94a3b8; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -486,10 +771,23 @@
 
 <main class="max-w-md md:max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
 
-  <!-- Hero 標題 (桌機限制寬度避免文字過散) -->
-  <div class="mb-6 md:max-w-2xl">
-    <h1 class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">廉政透明平台</h1>
-    <p class="text-sm text-slate-500 mt-1">公職人員財產申報資料視覺化</p>
+  <!-- Hero 標題 + 排行榜按鈕 -->
+  <div class="mb-6 flex justify-between items-start">
+    <div>
+      <h1 class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">廉政透明平台</h1>
+      <p class="text-sm text-slate-500 mt-1">公職人員財產申報資料視覺化</p>
+    </div>
+    <button onclick="openLeaderboard()"
+      class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white shrink-0 active:scale-95 transition"
+      style="background: linear-gradient(135deg, #6366F1, #8B5CF6); box-shadow: 0 4px 18px rgba(99,102,241,0.35);">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="12,2 13.5,7 18.5,7 14.5,10.2 16,15 12,12.2 8,15 9.5,10.2 5.5,7 10.5,7"/>
+        <rect x="2" y="12" width="6" height="10" rx="1"/>
+        <rect x="9" y="9" width="6" height="13" rx="1"/>
+        <rect x="16" y="15" width="6" height="7" rx="1"/>
+      </svg>
+      排行榜
+    </button>
   </div>
 
   <!-- 搜尋 + 進階篩選按鈕 (桌機限制寬度避免輸入框過長) -->
@@ -581,6 +879,168 @@
     <button id="filter-apply-btn" onclick="applySheetFilters()">套用篩選</button>
   </div>
 </div>
+
+
+<!-- ── 排行榜 Modal ── -->
+<div id="lbModal" role="dialog" aria-modal="true" aria-label="排行榜" onclick="lbBackdropClick(event)">
+  <div id="lbPanel">
+
+    <!-- 標頭 -->
+    <div class="lb-header">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">排行榜</h2>
+          <p class="text-xs text-slate-400 mt-0.5">點選圖片觀看分類排行</p>
+        </div>
+        <button onclick="closeLeaderboard()" class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition shrink-0 text-lg">×</button>
+      </div>
+      <!-- 財產 / 個股 tabs -->
+      <div class="lb-tab-bar">
+        <button class="lb-tab active" id="lbTabWealth" onclick="lbSetMode('wealth')">💼 財產</button>
+        <button class="lb-tab"        id="lbTabStock"  onclick="lbSetMode('stock')">📊 個股</button>
+      </div>
+    </div>
+
+    <!-- 滾動區 -->
+    <div class="lb-scroll-area">
+
+      <!-- ── 財產 Tab ── -->
+      <div id="lbWealthSection">
+
+        <!-- 類別 chips -->
+        <div class="lb-org-chips" id="lbOrgChips">
+          <button class="lb-org-chip active" data-org="" onclick="lbSetOrg('')">全部</button>
+          <button class="lb-org-chip" data-org="中央機關" onclick="lbSetOrg('中央機關')">中央機關</button>
+          <button class="lb-org-chip" data-org="地方機關" onclick="lbSetOrg('地方機關')">地方機關</button>
+          <button class="lb-org-chip" data-org="民意代表" onclick="lbSetOrg('民意代表')">民意代表</button>
+          <button class="lb-org-chip" data-org="公營事業" onclick="lbSetOrg('公營事業')">公營事業</button>
+        </div>
+
+        <!-- 卡片輪播 -->
+        <div class="lb-carousel-outer" id="lbCarouselOuter">
+          <button class="lb-arrow lb-arrow-left"  onclick="lbCarouselMove(-1)">‹</button>
+          <div class="lb-carousel-viewport">
+            <div class="lb-carousel-track" id="lbCarouselTrack">
+              <!-- 資産王 -->
+              <div class="lb-card-wrap lb-active" data-cidx="0" onclick="lbSelectCard(0)">
+                <div class="lb-card-inner">
+                  <div class="lb-icon-stage">
+                    <div class="lb-icon-base net" style="overflow:hidden;padding:0;">
+                      <svg viewBox="0 0 80 80" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- hat brim -->
+                        <ellipse cx="40" cy="52" rx="26" ry="7" fill="rgba(0,0,0,0.22)"/>
+                        <!-- hat body -->
+                        <rect x="22" y="25" width="36" height="28" rx="3" fill="rgba(0,0,0,0.28)"/>
+                        <!-- hat top brim -->
+                        <ellipse cx="40" cy="25" rx="20" ry="6" fill="rgba(0,0,0,0.20)"/>
+                        <!-- $ on hat -->
+                        <text x="40" y="45" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="900" fill="rgba(255,255,255,0.92)" font-family="Arial,sans-serif">$</text>
+                        <!-- monocle -->
+                        <circle cx="52" cy="60" r="7" stroke="rgba(255,255,255,0.7)" stroke-width="2" fill="none"/>
+                        <line x1="52" y1="53" x2="52" y2="50" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+                        <!-- face -->
+                        <circle cx="40" cy="63" r="9" fill="rgba(255,255,255,0.18)"/>
+                        <!-- smile -->
+                        <path d="M36 65 Q40 68.5 44 65" stroke="rgba(255,255,255,0.75)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="lb-card-title">資産王</div>
+                  <div class="lb-card-sub">總淨資産最高</div>
+                </div>
+              </div>
+              <!-- 存款王 -->
+              <div class="lb-card-wrap" data-cidx="1" onclick="lbSelectCard(1)">
+                <div class="lb-card-inner">
+                  <div class="lb-icon-stage">
+                    <div class="lb-icon-base dep" style="font-size:52px;font-weight:900;font-style:italic;color:rgba(120,53,15,0.85);">$</div>
+                  </div>
+                  <div class="lb-card-title">存款王</div>
+                  <div class="lb-card-sub">存款金額最多</div>
+                </div>
+              </div>
+              <!-- 持股王 -->
+              <div class="lb-card-wrap" data-cidx="2" onclick="lbSelectCard(2)">
+                <div class="lb-card-inner">
+                  <div class="lb-icon-stage">
+                    <div class="lb-icon-base sec">📈</div>
+                  </div>
+                  <div class="lb-card-title">持股王</div>
+                  <div class="lb-card-sub">有價證券最多</div>
+                </div>
+              </div>
+              <!-- 地產王 -->
+              <div class="lb-card-wrap" data-cidx="3" onclick="lbSelectCard(3)">
+                <div class="lb-card-inner">
+                  <div class="lb-icon-stage">
+                    <div class="lb-icon-base re">🏠</div>
+                  </div>
+                  <div class="lb-card-title">地產王</div>
+                  <div class="lb-card-sub">不動產申報最高</div>
+                </div>
+              </div>
+              <!-- 負債王 -->
+              <div class="lb-card-wrap" data-cidx="4" onclick="lbSelectCard(4)">
+                <div class="lb-card-inner">
+                  <div class="lb-icon-stage">
+                    <div class="lb-icon-base debt">📋</div>
+                  </div>
+                  <div class="lb-card-title">負債王</div>
+                  <div class="lb-card-sub">負債總額最多</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="lb-arrow lb-arrow-right" onclick="lbCarouselMove(1)">›</button>
+        </div>
+
+        <!-- 進入排行按鈕（卡片選定後可見） -->
+        <button class="lb-enter-btn" id="lbEnterBtn" onclick="lbShowRanking()">
+          查看<span id="lbEnterLabel">存款王</span>排行 →
+        </button>
+
+        <!-- 排名清單（初始隱藏） -->
+        <div class="lb-rank-area" id="lbRankArea" style="display:none">
+          <div class="lb-rank-header">
+            <button class="lb-rank-back" onclick="lbBackToCards()">
+              <svg style="width:13px;height:13px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              返回
+            </button>
+            <span class="lb-rank-title" id="lbRankTitle"></span>
+          </div>
+          <div id="lbRankList"></div>
+          <div class="lb-pagination" id="lbRankPager"></div>
+        </div>
+      </div>
+
+      <!-- ── 個股 Tab ── -->
+      <div id="lbStockSection" style="display:none">
+        <!-- 搜尋 + 篩選按鈕 -->
+        <div style="padding:14px 16px 0;display:flex;gap:8px;position:relative;">
+          <div style="flex:1;position:relative;">
+            <input type="text" class="lb-stock-input" id="lbStockInput" placeholder="輸入股票名稱快速搜尋" autocomplete="off" oninput="lbStockSearch(this.value)">
+            <div class="lb-stock-suggestions" id="lbStockSuggestions"></div>
+          </div>
+          <button id="lbStockFilterBtn" class="lb-sfbtn" onclick="openLbSF()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+            <span class="lb-sfbtn-text">篩選</span>
+          </button>
+        </div>
+        <!-- 目前選中股票 -->
+        <div style="padding:10px 16px 0;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:13px;color:#64748b;">目前：</span>
+          <span id="lbStockCurrent" style="font-size:14px;font-weight:700;color:#4F46E5;">台積電</span>
+        </div>
+        <div id="lbStockLoading" class="lb-stock-loading">載入中…</div>
+        <div class="lb-rank-area" id="lbStockRankArea" style="display:none">
+          <div id="lbStockRankList"></div>
+          <div class="lb-pagination" id="lbStockPager"></div>
+        </div>
+      </div>
+
+    </div><!-- /lb-scroll-area -->
+  </div><!-- /lbPanel -->
+</div><!-- /lbModal -->
 
 <!-- Footer -->
 <footer class="border-t border-slate-200 mt-12 py-8 bg-white">
@@ -1389,6 +1849,33 @@
 
   loadPoliticians();
 </script>
+
+
+<!-- ── 個股篩選彈出卡片 ── -->
+<div id="lbSFOverlay" onclick="closeLbSF()"></div>
+<div id="lbSFSheet">
+  <div class="lb-sf-handle"></div>
+  <div class="lb-sf-header">
+    <h3>篩選個股</h3>
+    <button class="lb-sf-close" onclick="closeLbSF()">×</button>
+  </div>
+  <div class="lb-sf-body">
+    <!-- 第一層：字首注音 -->
+    <div>
+      <span class="lb-sf-section-label">字首注音</span>
+      <div class="lb-bpmf-grid" id="lbBpmfGrid"></div>
+    </div>
+    <!-- 第二層：個股（選了注音後才啟用） -->
+    <div>
+      <span class="lb-sf-section-label">個股</span>
+      <div class="lb-sf-stock-list" id="lbSFStockList">
+        <div class="lb-sf-placeholder">← 請先選擇字首注音</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
 
 </body>
 </html>
