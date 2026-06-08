@@ -1971,7 +1971,7 @@
       if (inlineEl) {
         const estTag = withEstimate ? ` <span style="color:#7c3aed;font-size:10px">(含實價登錄估)</span>` : '';
         inlineEl.innerHTML = totalValue
-          ? `合計 <b class="text-slate-700">${formatNumber(totalValue)}</b> 元${estTag} · 共 <b class="text-slate-700">${numGroups}</b> 件`
+          ? `合計 <b class="text-slate-700">${formatNumber(totalValue)}</b> 元${estTag}<br>共 <b class="text-slate-700">${numGroups}</b> 件`
           : `共 <b class="text-slate-700">${numGroups}</b> 件`;
       }
       const discEl = document.getElementById('realEstateDisclaimer');
@@ -2154,7 +2154,7 @@
     const total = vehicles.reduce((s, v) => s + (parseFloat(v.amount) || 0), 0);
     if (summaryEl) {
       summaryEl.innerHTML = total
-        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${vehicles.length}</b> 件`
+        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元<br>共 <b class="text-slate-700">${vehicles.length}</b> 件`
         : `共 <b class="text-slate-700">${vehicles.length}</b> 件`;
     }
     const renderRow = (v) => {
@@ -2217,7 +2217,7 @@
       if (isInsurance) {
         summary.innerHTML = `共 <b class="text-slate-700">${items.length}</b> 件保單`;
       } else {
-        summary.innerHTML = `合計 <b class="text-slate-700">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${items.length}</b> 件`;
+        summary.innerHTML = `合計 <b class="text-slate-700">${formatNumber(total)}</b> 元<br>共 <b class="text-slate-700">${items.length}</b> 件`;
       }
     }
 
@@ -2271,7 +2271,7 @@
     const total = securities.reduce((s, x) => s + (parseFloat(x.current_value) || parseFloat(x.twd_amount) || 0), 0);
     if (summaryEl) {
       summaryEl.innerHTML = total
-        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${securities.length}</b> 筆`
+        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元<br>共 <b class="text-slate-700">${securities.length}</b> 筆`
         : '';
     }
     const renderRow = (s) => {
@@ -2475,7 +2475,7 @@
     const total = businesses.reduce((s, x) => s + (parseFloat(x.amount || x.twd_amount) || 0), 0);
     if (summaryEl) {
       summaryEl.innerHTML = total
-        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${businesses.length}</b> 筆`
+        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元<br>共 <b class="text-slate-700">${businesses.length}</b> 筆`
         : '';
     }
 
@@ -2524,7 +2524,7 @@
     section.style.display = '';
     const total = debts.reduce((s, d) => s + (parseFloat(d.balance) || 0), 0);
     if (summary) {
-      summary.innerHTML = `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${debts.length}</b> 筆`;
+      summary.innerHTML = `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元<br>共 <b class="text-slate-700">${debts.length}</b> 筆`;
     }
     const renderRow = (d) => {
       const kind = (d.kind || '').trim();
