@@ -991,10 +991,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    background: rgba(248, 250, 252, 0.92);
+    backdrop-filter: blur(2px);
     transition: opacity 0.5s ease;
-    pointer-events: none;
   }
-  #loading-overlay.fade-out { opacity: 0; }
+  #loading-overlay.fade-out { opacity: 0; pointer-events: none; }
   #loading-overlay.hidden { display: none; }
   #loading-pct {
     font-size: 5rem;
