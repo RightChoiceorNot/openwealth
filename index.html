@@ -1848,6 +1848,512 @@
   });
 
   loadPoliticians();
+
+// ══════════════════════════════════════════════
+  //  排行榜
+  // ══════════════════════════════════════════════
+
+  const LB_CARDS = [
+    { label: '資産王', field: 'net_assets',        sub: '總淨資産最高' },
+    { label: '存款王', field: 'total_deposits',    sub: '存款金額最多' },
+    { label: '持股王', field: 'total_securities',  sub: '有價證券最多' },
+    { label: '地產王', field: 'total_real_estate', sub: '不動產申報最高' },
+    { label: '負債王', field: 'total_debt',        sub: '負債總額最多' },
+  ];
+  const LB_PAGE_SIZE = 20;
+
+  let lbMode         = 'wealth';  // 'wealth' | 'stock'
+  let lbOrgFilter    = '';        // '' | '中央機關' | '地方機關' | '民意代表' | '公營事業'
+  let lbCardIdx      = 0;        // 0~3
+  let lbRankOpen     = false;
+  let lbRankPage     = 1;
+  let lbRankData     = [];
+
+  let lbSecData      = null;     // securities_index.json 懶載入
+  let lbSecLoading   = false;
+  let lbStockName    = '台積電';
+  let lbStockPage    = 1;
+  let lbStockData    = [];       // 目前股票的聚合排名
+
+  // ── avatar 顏色 ──
+  const AV_COLORS = { '中央機關':'#6366F1','地方機關':'#F97316','民意代表':'#14B8A6','公營事業':'#06B6D4','其他':'#94A3B8' };
+  function lbAvColor(p) { return AV_COLORS[getOrgCategory(p)] || '#94A3B8'; }
+
+  // ── 開 / 關 ──
+  function openLeaderboard() {
+    // Reset to initial state every time
+    lbMode = 'wealth';
+    lbOrgFilter = '';
+    lbCardIdx = 0;
+    lbRankOpen = false;
+    lbRankPage = 1;
+
+    document.getElementById('lbTabWealth').classList.add('active');
+    document.getElementById('lbTabStock').classList.remove('active');
+    const tabBar = document.querySelector('.lb-tab-bar');
+    if (tabBar) tabBar.style.display = '';
+    document.getElementById('lbWealthSection').style.display = '';
+    document.getElementById('lbStockSection').style.display = 'none';
+    document.getElementById('lbCarouselOuter').style.display = '';
+    document.getElementById('lbEnterBtn').style.display = '';
+    document.getElementById('lbRankArea').style.display = 'none';
+    document.querySelectorAll('.lb-org-chip').forEach(b => {
+      b.classList.toggle('active', (b.dataset.org || '') === '');
+    });
+
+    // reset bpmf + stock filter state
+    lbBpmfFilter = '';
+    lbStockName = '台積電';
+    lbStockPage = 1;
+    const _cur = document.getElementById('lbStockCurrent');
+    if (_cur) _cur.textContent = '台積電';
+    lbUpdateSFBtn();
+    if (lbSecData) lbBuildBpmfGrid();
+    const _sfOv = document.getElementById('lbSFOverlay');
+    const _sfSh = document.getElementById('lbSFSheet');
+    if (_sfOv) { _sfOv.style.display = 'none'; _sfOv.style.opacity = '0'; }
+    if (_sfSh) _sfSh.classList.remove('lb-sf-open');
+
+    document.getElementById('lbModal').classList.add('lb-open');
+    document.body.style.overflow = 'hidden';
+    lbUpdateCarousel();
+  }
+  function closeLeaderboard() {
+    document.getElementById('lbModal').classList.remove('lb-open');
+    document.body.style.overflow = '';
+  }
+  function lbBackdropClick(e) {
+    if (e.target === document.getElementById('lbModal')) closeLeaderboard();
+  }
+
+  // ── Tab 切換 ──
+  function lbSetMode(mode) {
+    lbMode = mode;
+    document.getElementById('lbTabWealth').classList.toggle('active', mode === 'wealth');
+    document.getElementById('lbTabStock').classList.toggle('active', mode === 'stock');
+    document.getElementById('lbWealthSection').style.display = mode === 'wealth' ? '' : 'none';
+    document.getElementById('lbStockSection').style.display  = mode === 'stock'  ? '' : 'none';
+    if (mode === 'stock') lbInitStock();
+  }
+
+  // ── 類別 chips ──
+  function lbSetOrg(org) {
+    lbOrgFilter = org;
+    document.querySelectorAll('.lb-org-chip').forEach(b => {
+      b.classList.toggle('active', (b.dataset.org || '') === org);
+    });
+    if (lbRankOpen) lbShowRanking();  // 已在排行畫面時即時刷新
+  }
+
+  // ── 卡片輪播 ──
+  function lbCarouselMove(dir) {
+    lbCardIdx = (lbCardIdx + dir + LB_CARDS.length) % LB_CARDS.length;
+    lbUpdateCarousel();
+  }
+  function lbSelectCard(idx) {
+    if (lbCardIdx === idx) {
+      lbShowRanking();
+    } else {
+      lbCardIdx = idx;
+      lbUpdateCarousel();
+    }
+  }
+  function lbUpdateCarousel() {
+    const cards = document.querySelectorAll('.lb-card-wrap');
+    const track = document.getElementById('lbCarouselTrack');
+    const cardW = 180 + 16; // card width + gap = 196
+    const trackW = LB_CARDS.length * cardW - 16; // 4*196-16 = 768
+
+    cards.forEach((c, i) => {
+      c.classList.toggle('lb-active', i === lbCardIdx);
+    });
+
+    // Correct centering: trackW/2 - idx*cardW - halfCardW
+    // Works regardless of viewport width (justify-content:center baseline)
+    const offset = trackW / 2 - lbCardIdx * cardW - 90;
+    track.style.transform = `translateX(${offset}px)`;
+
+    document.getElementById('lbEnterLabel').textContent = LB_CARDS[lbCardIdx].label;
+  }
+
+  // touch swipe support
+  (function() {
+    let tsX = null;
+    const outer = () => document.getElementById('lbCarouselOuter');
+    document.addEventListener('touchstart', e => {
+      if (outer() && outer().contains(e.target)) tsX = e.touches[0].clientX;
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      if (tsX === null) return;
+      const dx = e.changedTouches[0].clientX - tsX;
+      tsX = null;
+      if (Math.abs(dx) < 30) return;
+      const el = outer();
+      if (!el || !el.contains(e.target)) return;
+      lbCarouselMove(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  })();
+
+  // ── 排行邏輯 ──
+  function lbGetRankData() {
+    const card = LB_CARDS[lbCardIdx];
+    const field = card.field;
+    let pool = allPoliticians.filter(p => lbOrgFilter ? getOrgCategory(p) === lbOrgFilter : true);
+    pool = pool.filter(p => (p[field] || 0) > 0);
+    pool = pool.slice().sort((a, b) => (b[field] || 0) - (a[field] || 0));
+    return pool;
+  }
+
+  function lbShowRanking() {
+    lbRankOpen = true;
+    lbRankPage = 1;
+    lbRankData = lbGetRankData();
+    // 進入排行層：隱藏輪播 + 頁籤列
+    document.getElementById('lbCarouselOuter').style.display = 'none';
+    document.getElementById('lbEnterBtn').style.display = 'none';
+    document.getElementById('lbOrgChips').style.display = 'flex';
+    document.getElementById('lbRankArea').style.display = '';
+    const tabBar = document.querySelector('.lb-tab-bar');
+    if (tabBar) tabBar.style.display = 'none';
+
+    const card = LB_CARDS[lbCardIdx];
+    const org = lbOrgFilter || '全部';
+    document.getElementById('lbRankTitle').textContent = `${org} ${card.label}`;
+    lbRenderRankPage();
+  }
+
+  function lbBackToCards() {
+    lbRankOpen = false;
+    document.getElementById('lbCarouselOuter').style.display = '';
+    document.getElementById('lbEnterBtn').style.display = '';
+    document.getElementById('lbRankArea').style.display = 'none';
+    const tabBar = document.querySelector('.lb-tab-bar');
+    if (tabBar) tabBar.style.display = '';
+    lbUpdateCarousel();
+  }
+
+  function lbRenderRankPage() {
+    const start = (lbRankPage - 1) * LB_PAGE_SIZE;
+    const page  = lbRankData.slice(start, start + LB_PAGE_SIZE);
+    const card  = LB_CARDS[lbCardIdx];
+    const maxVal = lbRankData.length > 0 ? (lbRankData[0][card.field] || 1) : 1;
+
+    const isDebt = card.field === 'total_debt';
+    const valColor = isDebt ? '#EF4444' : '#4F46E5';
+
+    if (page.length === 0) {
+      document.getElementById('lbRankList').innerHTML =
+        '<div style="padding:36px 16px;text-align:center;"><div style="font-size:36px;margin-bottom:10px;">📭</div><div style="color:#94a3b8;font-size:14px;">此類別暫無申報資料</div></div>';
+    } else {
+      document.getElementById('lbRankList').innerHTML = page.map((p, i) => {
+        const rank = start + i + 1;
+        const numClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+        const medal    = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+        const val = formatCurrency(p[card.field]);
+        const av = lbAvColor(p);
+        const initial = (p.name || '?')[0];
+        const pct = Math.min(100, Math.round(((p[card.field] || 0) / maxVal) * 100));
+        const barBg = `background:linear-gradient(to right,rgba(99,102,241,0.09) ${pct}%,white ${pct}%);`;
+        return `<a class="lb-rank-row" style="${barBg}" href="profile-page.html?name=${encodeURIComponent(p.name)}" onclick="closeLeaderboard()">
+          <div class="lb-rank-num ${numClass}">${medal}</div>
+          <div class="lb-rank-avatar" style="background:${av}">${initial}</div>
+          <div class="lb-rank-info">
+            <div class="lb-rank-name">${p.name}</div>
+            <div class="lb-rank-org">${p.latest_organization || ''} ${p.latest_title || ''}</div>
+          </div>
+          <div class="lb-rank-val" style="color:${valColor}">${val}</div>
+        </a>`;
+      }).join('');
+    }
+
+    lbRenderPager('lbRankPager', lbRankData.length, lbRankPage, n => { lbRankPage = n; lbRenderRankPage(); lbScrollTop(); });
+  }
+
+  function lbScrollTop() {
+    const sa = document.querySelector('.lb-scroll-area');
+    if (sa) sa.scrollTop = 0;
+  }
+
+  // ── 分頁 ──
+  function lbRenderPager(containerId, total, current, onPage) {
+    const pages = Math.ceil(total / LB_PAGE_SIZE);
+    if (pages <= 1) { document.getElementById(containerId).innerHTML = ''; return; }
+    const el = document.getElementById(containerId);
+    let html = `<button class="lb-page-btn" onclick="(${onPage.toString()})(${current - 1})" ${current <= 1 ? 'disabled' : ''}>‹</button>`;
+    // show max 5 page buttons around current
+    const lo = Math.max(1, current - 2), hi = Math.min(pages, current + 2);
+    if (lo > 1)    html += `<button class="lb-page-btn" onclick="(${onPage.toString()})(1)">1</button>${lo > 2 ? '<span style="color:#94a3b8;padding:0 4px">…</span>' : ''}`;
+    for (let i = lo; i <= hi; i++) {
+      html += `<button class="lb-page-btn ${i === current ? 'active' : ''}" onclick="(${onPage.toString()})(${i})">${i}</button>`;
+    }
+    if (hi < pages) html += `${hi < pages - 1 ? '<span style="color:#94a3b8;padding:0 4px">…</span>' : ''}<button class="lb-page-btn" onclick="(${onPage.toString()})(${pages})">${pages}</button>`;
+    html += `<button class="lb-page-btn" onclick="(${onPage.toString()})(${current + 1})" ${current >= pages ? 'disabled' : ''}>›</button>`;
+    el.innerHTML = html;
+  }
+
+  // ══════════════════════════════════════════════
+  //  注音聲符查詢表（pypinyin 生成，涵蓋全部股票首字）
+  // ══════════════════════════════════════════════
+  const CHAR_BPMF = {
+    "B":"ㄅ","C":"ㄘ","F":"ㄈ","G":"ㄍ","L":"ㄌ","M":"ㄇ","N":"ㄋ","P":"ㄆ","S":"ㄙ","T":"ㄊ",
+    "j":"ㄐ","三":"ㄙ","上":"ㄕ","世":"ㄕ","中":"ㄓ","主":"ㄓ","久":"ㄐ","九":"ㄐ","事":"ㄕ",
+    "互":"ㄏ","享":"ㄒ","京":"ㄐ","仁":"ㄖ","今":"ㄐ","介":"ㄐ","仕":"ㄕ","仲":"ㄓ","佐":"ㄗ",
+    "佰":"ㄅ","佳":"ㄐ","佶":"ㄐ","來":"ㄌ","保":"ㄅ","信":"ㄒ","倉":"ㄘ","倍":"ㄅ","倫":"ㄌ",
+    "健":"ㄐ","傳":"ㄔ","僑":"ㄑ","儒":"ㄖ","兆":"ㄓ","先":"ㄒ","光":"ㄍ","全":"ㄑ","八":"ㄅ",
+    "公":"ㄍ","六":"ㄌ","典":"ㄉ","再":"ㄗ","冠":"ㄍ","凌":"ㄌ","凡":"ㄈ","凱":"ㄎ","利":"ㄌ",
+    "前":"ㄑ","創":"ㄔ","劍":"ㄐ","力":"ㄌ","加":"ㄐ","動":"ㄉ","勝":"ㄕ","勤":"ㄑ","北":"ㄅ",
+    "匯":"ㄏ","十":"ㄕ","千":"ㄑ","協":"ㄒ","南":"ㄋ","博":"ㄅ","卜":"ㄅ","厚":"ㄏ","及":"ㄐ",
+    "可":"ㄎ","台":"ㄊ","合":"ㄏ","吉":"ㄐ","同":"ㄊ","名":"ㄇ","君":"ㄐ","和":"ㄏ","品":"ㄆ",
+    "唐":"ㄊ","商":"ㄕ","啟":"ㄑ","善":"ㄕ","喬":"ㄑ","單":"ㄉ","嘉":"ㄐ","四":"ㄙ","國":"ㄍ",
+    "土":"ㄊ","地":"ㄉ","均":"ㄐ","基":"ㄐ","堃":"ㄎ","堡":"ㄅ","堤":"ㄉ","增":"ㄗ","士":"ㄕ",
+    "夆":"ㄈ","大":"ㄉ","天":"ㄊ","太":"ㄊ","奇":"ㄑ","奔":"ㄅ","如":"ㄖ","宅":"ㄓ","宏":"ㄏ",
+    "官":"ㄍ","定":"ㄉ","宣":"ㄒ","家":"ㄐ","富":"ㄈ","寬":"ㄎ","寶":"ㄅ","尖":"ㄐ","尚":"ㄕ",
+    "尼":"ㄋ","居":"ㄐ","展":"ㄓ","山":"ㄕ","岱":"ㄉ","崇":"ㄔ","崧":"ㄙ","川":"ㄔ","州":"ㄓ",
+    "工":"ㄍ","巧":"ㄑ","巨":"ㄐ","帆":"ㄈ","希":"ㄒ","平":"ㄆ","年":"ㄋ","幸":"ㄒ","康":"ㄎ",
+    "廣":"ㄍ","廷":"ㄊ","建":"ㄐ","弘":"ㄏ","強":"ㄑ","彩":"ㄘ","彬":"ㄅ","彰":"ㄓ","得":"ㄉ",
+    "復":"ㄈ","德":"ㄉ","心":"ㄒ","志":"ㄓ","恆":"ㄏ","恒":"ㄏ","惠":"ㄏ","慕":"ㄇ","慧":"ㄏ",
+    "慶":"ㄑ","懷":"ㄏ","成":"ㄔ","所":"ㄙ","承":"ㄔ","技":"ㄐ","振":"ㄓ","捷":"ㄐ","揚":"ㄧ",
+    "摩":"ㄇ","撼":"ㄏ","擎":"ㄑ","敏":"ㄇ","敦":"ㄉ","敬":"ㄐ","數":"ㄕ","斐":"ㄈ","新":"ㄒ",
+    "施":"ㄕ","日":"ㄖ","旭":"ㄒ","昆":"ㄎ","昇":"ㄕ","明":"ㄇ","星":"ㄒ","春":"ㄔ","昶":"ㄔ",
+    "晉":"ㄐ","晟":"ㄔ","普":"ㄆ","景":"ㄐ","晶":"ㄐ","智":"ㄓ","朋":"ㄆ","朗":"ㄌ","期":"ㄑ",
+    "杏":"ㄒ","材":"ㄘ","杰":"ㄐ","東":"ㄉ","松":"ㄙ","板":"ㄅ","柏":"ㄅ","根":"ㄍ","梅":"ㄇ",
+    "森":"ㄙ","楠":"ㄋ","榮":"ㄖ","樂":"ㄌ","樺":"ㄏ","橋":"ㄑ","橘":"ㄐ","欣":"ㄒ","歌":"ㄍ",
+    "正":"ㄓ","水":"ㄕ","汎":"ㄈ","江":"ㄐ","沛":"ㄆ","泓":"ㄏ","法":"ㄈ","波":"ㄅ","泰":"ㄊ",
+    "浩":"ㄏ","浪":"ㄌ","海":"ㄏ","淘":"ㄊ","淳":"ㄔ","清":"ㄑ","湯":"ㄊ","漢":"ㄏ","潤":"ㄖ",
+    "澤":"ㄗ","濟":"ㄐ","濱":"ㄅ","瀚":"ㄏ","牧":"ㄇ","特":"ㄊ","琉":"ㄌ","瑞":"ㄖ","環":"ㄏ",
+    "生":"ㄕ","申":"ㄕ","界":"ㄐ","白":"ㄅ","百":"ㄅ","皇":"ㄏ","盛":"ㄕ","盟":"ㄇ","直":"ㄓ",
+    "眾":"ㄓ","睿":"ㄖ","矽":"ㄒ","碧":"ㄅ","碳":"ㄊ","磐":"ㄆ","神":"ㄕ","祥":"ㄒ","福":"ㄈ",
+    "禾":"ㄏ","秀":"ㄒ","科":"ㄎ","立":"ㄌ","競":"ㄐ","笙":"ㄕ","第":"ㄉ","精":"ㄐ","系":"ㄒ",
+    "納":"ㄋ","紐":"ㄋ","統":"ㄊ","綠":"ㄌ","羅":"ㄌ","美":"ㄇ","群":"ㄑ","翔":"ㄒ","聖":"ㄕ",
+    "聚":"ㄐ","聯":"ㄌ","聲":"ㄕ","能":"ㄋ","至":"ㄓ","致":"ㄓ","臺":"ㄊ","臻":"ㄓ","興":"ㄒ",
+    "良":"ㄌ","芯":"ㄒ","花":"ㄏ","茂":"ㄇ","華":"ㄏ","菱":"ㄌ","葡":"ㄆ","蒙":"ㄇ","藍":"ㄌ",
+    "蘋":"ㄆ","虎":"ㄏ","虹":"ㄏ","蜜":"ㄇ","融":"ㄖ","褔":"ㄈ","西":"ㄒ","訊":"ㄒ","詩":"ㄕ",
+    "詮":"ㄑ","誠":"ㄔ","譁":"ㄏ","譜":"ㄆ","谷":"ㄍ","豐":"ㄈ","豪":"ㄏ","貝":"ㄅ","貨":"ㄏ",
+    "資":"ㄗ","超":"ㄔ","路":"ㄌ","軒":"ㄒ","輔":"ㄈ","輝":"ㄏ","辛":"ㄒ","農":"ㄋ","迅":"ㄒ",
+    "通":"ㄊ","連":"ㄌ","進":"ㄐ","達":"ㄉ","邦":"ㄅ","郡":"ㄐ","鄉":"ㄒ","醣":"ㄊ","金":"ㄐ",
+    "鈊":"ㄒ","鈞":"ㄐ","鈦":"ㄊ","鉅":"ㄐ","銘":"ㄇ","銳":"ㄖ","鋰":"ㄌ","錦":"ㄐ","錸":"ㄌ",
+    "錼":"ㄋ","鐵":"ㄊ","鑫":"ㄒ","鑽":"ㄗ","長":"ㄓ","閎":"ㄏ","關":"ㄍ","陞":"ㄕ","陸":"ㄌ",
+    "隆":"ㄌ","雃":"ㄑ","雄":"ㄒ","集":"ㄐ","雙":"ㄕ","零":"ㄌ","雷":"ㄌ","霸":"ㄅ","霹":"ㄆ",
+    "青":"ㄑ","頂":"ㄉ","順":"ㄕ","頎":"ㄑ","類":"ㄌ","飛":"ㄈ","首":"ㄕ","駿":"ㄐ","騰":"ㄊ",
+    "驊":"ㄏ","高":"ㄍ","鳳":"ㄈ","鴻":"ㄏ","麗":"ㄌ","黑":"ㄏ","點":"ㄉ","鼎":"ㄉ","齊":"ㄑ",
+    "龍":"ㄌ",
+    "一":"ㄧ","云":"ㄩ","五":"ㄨ","亞":"ㄧ","伍":"ㄨ","位":"ㄨ","倚":"ㄧ","偉":"ㄨ","億":"ㄧ","優":"ㄧ","允":"ㄩ","元":"ㄩ","印":"ㄧ","原":"ㄩ","友":"ㄧ","味":"ㄨ","因":"ㄧ","圓":"ㄩ","奕":"ㄧ","威":"ㄨ","宇":"ㄩ","宜":"ㄧ","岳":"ㄩ","幃":"ㄨ","延":"ㄧ","彥":"ㄧ","御":"ㄩ","微":"ㄨ","怡":"ㄧ","憶":"ㄧ","文":"ㄨ","旺":"ㄨ","易":"ㄧ","映":"ㄧ","昱":"ㄩ","曜":"ㄧ","有":"ㄧ","櫻":"ㄧ","毅":"ㄧ","永":"ㄩ","洋":"ㄧ","湧":"ㄩ","炎":"ㄧ","為":"ㄨ","無":"ㄨ","燁":"ㄧ","營":"ㄧ","燿":"ㄧ","玉":"ㄩ","王":"ㄨ","由":"ㄧ","益":"ㄧ","研":"ㄧ","穎":"ㄧ","穩":"ㄨ","網":"ㄨ","緯":"ㄨ","義":"ㄧ","羽":"ㄩ","耀":"ㄧ","育":"ㄩ","英":"ㄧ","萬":"ㄨ","蔚":"ㄨ","藥":"ㄧ","裕":"ㄩ","越":"ㄩ","迎":"ㄧ","逸":"ㄧ","運":"ㄩ","遠":"ㄩ","邑":"ㄧ","野":"ㄧ","鈺":"ㄩ","鐿":"ㄧ","陽":"ㄧ","雅":"ㄧ","雍":"ㄩ","雲":"ㄩ","韋":"ㄨ",
+    "阿":"ㄚ","愛":"ㄞ","艾":"ㄞ","歐":"ㄡ","安":"ㄢ","恩":"ㄣ"
+  };
+  const BPMF_ORDER = ['ㄅ','ㄆ','ㄇ','ㄈ','ㄉ','ㄊ','ㄋ','ㄌ','ㄍ','ㄎ','ㄏ','ㄐ','ㄑ','ㄒ','ㄓ','ㄔ','ㄕ','ㄖ','ㄗ','ㄘ','ㄙ','ㄧ','ㄨ','ㄩ','ㄚ','ㄞ','ㄡ','ㄢ','ㄣ','其他'];
+  let lbBpmfFilter = '';
+
+  function lbGetBpmf(name) {
+    if (!name) return '其他';
+    return CHAR_BPMF[name[0]] || '其他';
+  }
+
+  function lbBuildBpmfGrid() {
+    if (!lbSecData) return;
+    const groups = new Set(Object.keys(lbSecData).map(n => lbGetBpmf(n)));
+    document.getElementById('lbBpmfGrid').innerHTML = BPMF_ORDER
+      .filter(b => groups.has(b))
+      .map(b => `<button class="lb-bpmf-btn${lbBpmfFilter===b?' active':''}" onclick="lbSetBpmf('${b}')">${b}</button>`)
+      .join('');
+  }
+
+  function lbSetBpmf(bpmf) {
+    lbBpmfFilter = (lbBpmfFilter === bpmf) ? '' : bpmf;
+    lbBuildBpmfGrid();
+    lbBuildSFStockList();
+    lbUpdateSFBtn();
+  }
+
+  // ── 個股篩選彈出卡片（同列表頁篩選邏輯）──
+  function openLbSF() {
+    // 每次打開重設回台積電預設狀態
+    lbBpmfFilter = '';
+    lbStockName = '台積電';
+    lbBuildBpmfGrid();
+    lbBuildSFStockList();
+    lbUpdateSFBtn();
+    if (lbSecData) lbRenderStockRank();   // 同步更新背景排行
+    document.getElementById('lbSFOverlay').style.display = 'block';
+    requestAnimationFrame(() => {
+      document.getElementById('lbSFOverlay').classList.add('visible');
+      document.getElementById('lbSFSheet').classList.add('lb-sf-open');
+    });
+  }
+
+  function closeLbSF() {
+    clearTimeout(window._lbSFCloseTimer);
+    document.getElementById('lbSFOverlay').classList.remove('visible');
+    document.getElementById('lbSFSheet').classList.remove('lb-sf-open');
+    window._lbSFCloseTimer = setTimeout(() => {
+      document.getElementById('lbSFOverlay').style.display = 'none';
+    }, 300);
+    lbUpdateSFBtn();
+  }
+
+  function lbBuildSFStockList() {
+    const el = document.getElementById('lbSFStockList');
+    if (!lbBpmfFilter) {
+      el.innerHTML = '<div class="lb-sf-placeholder">← 請先選擇字首注音</div>';
+      return;
+    }
+    if (!lbSecData) {
+      el.innerHTML = '<div class="lb-sf-placeholder">載入中…</div>';
+      return;
+    }
+    const stocks = Object.keys(lbSecData)
+      .filter(k => lbGetBpmf(k) === lbBpmfFilter)
+      .sort((a, b) => a.localeCompare(b, 'zh-TW'));
+    if (stocks.length === 0) {
+      el.innerHTML = '<div class="lb-sf-placeholder">此注音無個股資料</div>';
+      return;
+    }
+    el.innerHTML = stocks.map(s => {
+      const count = (lbSecData[s] || []).length;
+      const isSel = s === lbStockName;
+      return `<div class="lb-sf-stock-item${isSel ? ' lb-sf-sel' : ''}" onmousedown="lbPickStockFromSF('${s.replace(/'/g, "\\'")}')">
+        <span>${s}</span>
+        <span class="lb-sf-stock-count">${count} 人持有</span>
+      </div>`;
+    }).join('');
+  }
+
+  function lbPickStockFromSF(name) {
+    lbBpmfFilter = '';
+    lbPickStock(name);
+    closeLbSF();
+  }
+
+  function lbUpdateSFBtn() {
+    const btn = document.getElementById('lbStockFilterBtn');
+    if (!btn) return;
+    const label = btn.querySelector('.lb-sfbtn-text');
+    // 按鈕只反映注音篩選狀態；目前股票已在「目前：」文字顯示
+    if (lbBpmfFilter) {
+      btn.classList.add('lb-sfbtn--active');
+      label.textContent = lbBpmfFilter;
+    } else {
+      btn.classList.remove('lb-sfbtn--active');
+      label.textContent = '篩選';
+    }
+  }
+
+  // ══════════════════════════════════════════════
+  //  個股 Tab
+  // ══════════════════════════════════════════════
+
+  async function lbInitStock() {
+    if (lbSecData) { lbRenderStockRank(); return; }
+    if (lbSecLoading) return;
+    lbSecLoading = true;
+    document.getElementById('lbStockLoading').style.display = '';
+    document.getElementById('lbStockRankArea').style.display = 'none';
+    try {
+      const res = await fetch('data/securities_index.json');
+      lbSecData = await res.json();
+      lbRenderStockRank();
+    } catch(e) {
+      document.getElementById('lbStockLoading').textContent = '載入失敗，請重試';
+    } finally {
+      lbSecLoading = false;
+    }
+  }
+
+  function lbAggregateStock(name) {
+    const entries = lbSecData[name] || [];
+    const byPol = {};
+    for (const e of entries) {
+      const key = e.politician;
+      const val = e.current_value || e.twd_amount || 0;
+      const qty = e.quantity || 0;
+      if (!byPol[key]) {
+        byPol[key] = { politician: e.politician, organization: e.organization, title: e.title, total: 0, shares: 0 };
+      }
+      byPol[key].total += val;
+      byPol[key].shares += qty;
+    }
+    return Object.values(byPol).sort((a, b) => b.total - a.total);
+  }
+
+  function lbRenderStockRank() {
+    if (!lbSecData) return;
+    // fallback if selected stock not in data
+    if (!lbSecData[lbStockName]) {
+      const first = Object.keys(lbSecData)[0];
+      if (first) lbStockName = first;
+    }
+    document.getElementById('lbStockCurrent').textContent = lbStockName;
+    document.getElementById('lbStockLoading').style.display = 'none';
+    document.getElementById('lbStockRankArea').style.display = '';
+    lbUpdateSFBtn();
+
+    lbStockData = lbAggregateStock(lbStockName);
+    lbStockPage = 1;
+    lbRenderStockPage();
+  }
+
+  function lbRenderStockPage() {
+    const start = (lbStockPage - 1) * LB_PAGE_SIZE;
+    const page  = lbStockData.slice(start, start + LB_PAGE_SIZE);
+    const maxVal = lbStockData.length > 0 ? (lbStockData[0].total || 1) : 1;
+    document.getElementById('lbStockRankList').innerHTML = page.map((e, i) => {
+      const rank = start + i + 1;
+      const numClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+      const val = formatCurrency(e.total);
+      const av = AV_COLORS[getOrgCategory({ latest_title: e.title, latest_organization: e.organization })] || '#94A3B8';
+      const initial = (e.politician || '?')[0];
+      const pct = Math.min(100, Math.round((e.total / maxVal) * 100));
+      const barBg = `background:linear-gradient(to right,rgba(99,102,241,0.09) ${pct}%,white ${pct}%);`;
+      const lots = e.shares >= 1000 ? `${Math.round(e.shares / 1000).toLocaleString()} 張` : `${Math.round(e.shares).toLocaleString()} 股`;
+      return `<a class="lb-rank-row" style="${barBg}" href="profile-page.html?name=${encodeURIComponent(e.politician)}" onclick="closeLeaderboard()">
+        <div class="lb-rank-num ${numClass}">${medal}</div>
+        <div class="lb-rank-avatar" style="background:${av}">${initial}</div>
+        <div class="lb-rank-info">
+          <div class="lb-rank-name">${e.politician}</div>
+          <div class="lb-rank-org">${e.organization || ''} ${e.title || ''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="lb-rank-val">${val}</div>
+          <div style="font-size:11px;color:#94a3b8;font-variant-numeric:tabular-nums;">${lots}</div>
+        </div>
+      </a>`;
+    }).join('') || '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:14px;">無持股資料</div>';
+
+    lbRenderPager('lbStockPager', lbStockData.length, lbStockPage, n => { lbStockPage = n; lbRenderStockPage(); lbScrollTop(); });
+  }
+
+  // 股票搜尋 autocomplete（快速文字搜尋，跨所有股票）
+  function lbStockSearch(q) {
+    const sugg = document.getElementById('lbStockSuggestions');
+    if (!lbSecData || !q) { sugg.classList.remove('open'); return; }
+    const filtered = Object.keys(lbSecData).filter(k => k.includes(q)).slice(0, 20);
+    sugg.innerHTML = filtered.map(k => {
+      const isSel = k === lbStockName;
+      return `<div class="lb-stock-sug-item${isSel ? ' selected-stock' : ''}" onmousedown="lbPickStock('${k.replace(/'/g, "\\'")}')">
+        ${k} <span style="color:#94a3b8;font-size:11px;margin-left:4px">${(lbSecData[k]||[]).length}人持有</span>
+      </div>`;
+    }).join('');
+    if (filtered.length === 0) {
+      sugg.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:13px;">找不到相符的股票</div>';
+    }
+    sugg.classList.add('open');
+  }
+
+  function lbPickStock(name) {
+    lbStockName = name;
+    document.getElementById('lbStockSuggestions').classList.remove('open');
+    document.getElementById('lbStockInput').value = '';
+    lbRenderStockRank();
+  }
+
+  // 點外部關閉 suggestions
+  document.addEventListener('click', e => {
+    const sugg = document.getElementById('lbStockSuggestions');
+    if (sugg && !sugg.contains(e.target) && e.target.id !== 'lbStockInput') {
+      sugg.classList.remove('open');
+    }
+  });
+
 </script>
 
 
