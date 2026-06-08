@@ -1,0 +1,2591 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>財產申報查詢 | 廉政透明平台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  /* ── Design Tokens v3 ── */
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", sans-serif; }
+  .num { font-variant-numeric: tabular-nums; }
+  .shadow-soft  { box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+  .shadow-card  { box-shadow: 0 4px 20px rgba(15,23,42,0.06); }
+
+  /* avatar */
+  .av-central { background: linear-gradient(135deg, #6366F1, #818CF8); }
+  .av-local   { background: linear-gradient(135deg, #F97316, #FB923C); }
+  .av-council { background: linear-gradient(135deg, #14B8A6, #5EEAD4); }
+  .av-soe     { background: linear-gradient(135deg, #06B6D4, #22D3EE); }
+  .av-other   { background: linear-gradient(135deg, #94A3B8, #CBD5E1); }
+
+  /* iOS-style toggle */
+  .switch { position: relative; display: inline-block; width: 42px; height: 24px; }
+  .switch input { display:none; }
+  .switch-slider { position: absolute; cursor: pointer; inset: 0; background:#CBD5E1; border-radius:999px; transition:.2s; }
+  .switch-slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; box-shadow:0 2px 4px rgba(0,0,0,0.15); }
+  .switch input:checked + .switch-slider { background:#4F46E5; }
+  .switch input:checked + .switch-slider:before { transform: translateX(18px); }
+
+  /* pill / tag */
+  .pill { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:9999px; font-size:11px; font-weight:500; line-height:1.6; white-space:nowrap; }
+  .pill-primary { background:#EEF2FF; color:#4F46E5; }
+  .pill-mute    { background:#F1F5F9; color:#475569; }
+  .pill-owner   { background:#F1F5F9; color:#334155; }
+  .pill-spouse  { background:#FCE7F3; color:#BE185D; }
+  .pill-est     { background:#F5F3FF; color:#7C3AED; border:1px solid #E9D5FF; }
+
+  .tag-acq { display:inline-flex; padding:2px 10px; border-radius:9999px; font-size:11px; font-weight:500; line-height:1.6; white-space:nowrap; }
+  .acq-買賣     { background:#DBEAFE; color:#1D4ED8; }
+  .acq-繼承     { background:#FCE7F3; color:#BE185D; }
+  .acq-贈與     { background:#FEF3C7; color:#B45309; }
+  .acq-交換     { background:#E0F2FE; color:#0369A1; }
+  .acq-徵收補償 { background:#FFEDD5; color:#9A3412; }
+  .acq-領回抵價地 { background:#FAE8FF; color:#86198F; }
+  .acq-分割繼承 { background:#FCE7F3; color:#BE185D; }
+  .acq-第一次登記 { background:#D1FAE5; color:#047857; }
+  .acq-賣出     { background:#FEE2E2; color:#B91C1C; }
+  .acq-信託     { background:#E0E7FF; color:#4338CA; }
+  .acq-其他     { background:#F1F5F9; color:#475569; }
+
+  .tag-valcat  { display:inline-flex; padding:2px 7px; border-radius:5px; font-size:10px; font-weight:600; line-height:1.6; white-space:nowrap; letter-spacing:0.01em; }
+  .valcat-land    { background:#CCFBF1; color:#0F766E; }
+  .valcat-apt     { background:#EFF6FF; color:#1E40AF; border:1px solid #BFDBFE; }
+  .valcat-town    { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+  .valcat-complex { background:#FAF5FF; color:#6B21A8; border:1px solid #E9D5FF; }
+  .valcat-mute    { background:#F8FAFC; color:#94A3B8; border:1px solid #E2E8F0; }
+
+  /* uniform list-item: icon | content | right-col (金額+owner) */
+  .item-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    column-gap: 12px;
+    align-items: start;
+  }
+  .item-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 80px; }
+
+  /* year chip styling */
+  .year-chip { flex-shrink: 0; padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 500; transition:.15s; cursor:pointer; }
+  .year-chip-inactive { background: white; color: #64748B; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+  .year-chip-active { background: #4F46E5; color: white; box-shadow: 0 4px 20px rgba(79,70,229,0.18); }
+
+  /* Avatar Stack Styles */
+  .avatar-group {
+    display: inline-flex;
+    position: relative;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    margin-left: -12px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s, z-index 0.2s;
+  }
+
+  .avatar:first-child {
+    margin-left: 0;
+  }
+
+  .avatar:hover {
+    transform: scale(1.1);
+    z-index: 10;
+  }
+
+  /* Tooltip */
+  .avatar-group:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #1e293b;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 100;
+    transition: opacity 0.3s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1e293b;
+  }
+
+  /* Badge for unlisted */
+  .badge-unlisted {
+    display: inline-block;
+    background-color: #fed7aa;
+    color: #92400e;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+  }
+
+  /* Timeline — 緊湊水平軸 (年份多時可橫向捲動，少時自動置中) */
+  .timeline {
+    position: relative;
+    display: flex;
+    justify-content: safe center;
+    align-items: flex-start;
+    gap: 18px;
+    padding: 14px 4px 8px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+  .timeline::-webkit-scrollbar { height: 4px; }
+  .timeline::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+  /* 水平連接線：穿過所有 dot 中心 */
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 12px;
+    right: 12px;
+    height: 2px;
+    background: #e2e8f0;
+    z-index: 0;
+  }
+
+  .timeline-item {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    min-width: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+
+  .timeline-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #cbd5e1;
+    box-shadow: 0 0 0 3px white; /* 蓋住連接線 */
+    transition: all 0.15s;
+  }
+  .timeline-item.active .timeline-dot {
+    background: #2563eb;
+    border-color: #2563eb;
+    transform: scale(1.2);
+  }
+
+  .timeline-year {
+    font-weight: 600;
+    font-size: 12px;
+    color: #475569;
+    line-height: 1;
+    margin-top: 4px;
+  }
+  .timeline-item.active .timeline-year { color: #0f172a; }
+
+  .timeline-title {
+    font-size: 10px;
+    color: #94a3b8;
+    line-height: 1.2;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .timeline-item.active .timeline-title { color: #2563eb; }
+
+  /* 新版緊湊 stat-mini（4 個指標排一行）*/
+  .stat-mini {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+  }
+  .stat-mini-highlight {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
+  .stat-mini-label {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
+  }
+  .stat-mini-number {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    font-family: 'Monaco', 'Courier New', monospace;
+    line-height: 1.1;
+    word-break: break-all;
+  }
+  @media (min-width: 640px) {
+    .stat-mini-number { font-size: 20px; }
+  }
+  .stat-mini-highlight .stat-mini-number { color: #1e40af; }
+
+  /* Stat card (舊版，保留相容) */
+  .stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: box-shadow 0.2s;
+  }
+
+  .stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .stat-number {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0f172a;
+    font-family: 'Monaco', 'Courier New', monospace;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  .stat-change {
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .stat-change.positive {
+    color: #16a34a;
+  }
+
+  .stat-change.negative {
+    color: #dc2626;
+  }
+
+  .stat-change.neutral {
+    color: #64748b;
+  }
+
+  /* Toggle switch */
+  .toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toggle-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 48px;
+    height: 28px;
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.3s;
+  }
+
+  .toggle-checkbox:checked {
+    background-color: #2563eb;
+  }
+
+  .toggle-checkbox::before {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: white;
+    top: 2px;
+    left: 2px;
+    transition: left 0.3s;
+  }
+
+  .toggle-checkbox:checked::before {
+    left: 22px;
+  }
+
+  /* Pie chart placeholder（顏色由 JS 動態設定 background）*/
+  .chart-placeholder {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: #e2e8f0;  /* 預設灰：等資料載入後 JS 會覆蓋 */
+    margin: 0 auto;
+    position: relative;
+  }
+  .chart-placeholder-sm {
+    width: 120px;
+    height: 120px;
+    margin: 0;
+  }
+  .chart-placeholder-sm .chart-center {
+    width: 70px;
+    height: 70px;
+  }
+  .chart-placeholder-sm .chart-number {
+    font-size: 18px;
+  }
+  .chart-placeholder-sm .chart-label {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .chart-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chart-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .chart-label {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+
+  /* Legend — 緊湊版 */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+
+  .legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .legend-text {
+    font-size: 12px;
+    color: #1e293b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .legend-percent {
+    font-weight: 600;
+    color: #2563eb;
+    margin-left: 4px;
+  }
+
+  /* Data table */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table thead tr {
+    background-color: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .data-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .data-table td {
+    padding: 14px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+    color: #1e293b;
+  }
+
+  .data-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+
+  .data-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Status badge */
+  .badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* 取得原因色票 — 不同原因不同顏色，方便辨識 */
+  .badge-買賣      { background: #dbeafe; color: #1e40af; }  /* 藍 */
+  .badge-繼承      { background: #dcfce7; color: #166534; }  /* 綠 */
+  .badge-贈與      { background: #fed7aa; color: #9a3412; }  /* 橘 */
+  .badge-交換      { background: #e9d5ff; color: #6b21a8; }  /* 紫 */
+  .badge-徵收補償  { background: #fef3c7; color: #92400e; }  /* 黃 */
+  .badge-領回抵價地 { background: #cffafe; color: #155e75; } /* 青 */
+  .badge-分割      { background: #fce7f3; color: #9d174d; }  /* 粉 */
+  .badge-第一次登記 { background: #fef3c7; color: #92400e; } /* 黃 */
+  .badge-賣出      { background: #fee2e2; color: #991b1b; }  /* 紅 */
+  .badge-信託      { background: #ccfbf1; color: #115e59; }  /* 蒂芬妮綠 */
+  .badge-其他      { background: #e2e8f0; color: #475569; }  /* 灰 */
+  .badge-default   { background: #e2e8f0; color: #475569; }
+  .badge-primary { background-color: #dbeafe; color: #1e40af; }
+  .badge-success { background-color: #dcfce7; color: #166534; }
+
+  /* 表格內姓名不換行 */
+  .nowrap-name {
+    white-space: nowrap;
+  }
+  .badge-spouse {
+    display: inline-block;
+    background: #fce7f3;
+    color: #9d174d;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .badge-est {
+    display: inline-block;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+
+  /* 桌面版預設隱藏 mobile-only 元素（mobile media query 內會覆蓋）*/
+  .re-acq-mobile { display: none; }
+  .re-mobile-extra { display: none; }
+  /* desktop：.re-owner-wrap 跟外層 span 一樣 inline 顯示，不絕對定位 */
+  .re-owner-wrap { display: inline; }
+  /* desktop 預設隱藏 mobile-only owner badge（手機才右上角顯示）*/
+  .card-owner-mobile { display: none; }
+
+  /* 不動產 summary 用 3 欄 grid 對齊 */
+  .re-sum-grid {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    column-gap: 14px;
+    row-gap: 2px;
+    font-size: 12px;
+  }
+  .re-sum-cell { line-height: 1.4; }
+  .re-sum-head {
+    font-size: 10px;
+    color: #94a3b8;
+    text-align: right;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+  .re-sum-label {
+    color: #475569;
+    font-weight: 600;
+  }
+  .re-sum-num {
+    text-align: right;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+  .re-sum-coverage {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-top: 6px;
+    text-align: right;
+  }
+
+  /* ── 手機版：表格 stacked card 樣式 ── */
+  @media (max-width: 639px) {
+    .data-table thead { display: none; }
+    .data-table, .data-table tbody, .data-table tr, .data-table td {
+      display: block;
+    }
+    .data-table tr {
+      position: relative;
+      padding: 12px 4px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .data-table tr:last-child { border-bottom: none; }
+    .data-table td {
+      padding: 0;
+      border: none;
+      text-align: left !important;
+    }
+
+    /* 共用：所有卡片手機版 owner 絕對定位右上角 (除了不動產有自己的 .re-owner-wrap) */
+    .card-owner-mobile {
+      display: block;
+      position: absolute;
+      top: 12px;
+      right: 4px;
+      font-size: 12px;
+      color: #475569;
+      text-align: right;
+      white-space: nowrap;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    /* desktop 原本 inline 顯示的 owner 在 mobile 隱藏 */
+    .card-owner-inline { display: none !important; }
+
+    /* === 統一 6 張表 + 交通工具的 mobile 卡片布局 === */
+    #securitiesTable tr,
+    #businessTable tr,
+    #claimTable tr,
+    #insuranceTable tr,
+    #antiqueTable tr,
+    #virtualTable tr,
+    #vehicleTable tr {
+      display: block !important;
+      position: relative !important;
+      padding: 12px 130px 38px 4px !important;  /* 右側給 owner、底部給金額 */
+    }
+    /* 第 1 td 名稱大字 (block) */
+    #securitiesTable td:nth-child(1),
+    #businessTable td:nth-child(1),
+    #claimTable td:nth-child(1),
+    #insuranceTable td:nth-child(1),
+    #antiqueTable td:nth-child(1),
+    #virtualTable td:nth-child(1) {
+      display: block !important;
+      grid-column: unset !important;
+      grid-row: unset !important;
+      font-size: 13px;
+    }
+    /* securities 第 2 td 股數: inline 小字 */
+    #securitiesTable td:nth-child(2) {
+      display: inline-block !important;
+      grid-column: unset !important;
+      grid-row: unset !important;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    #securitiesTable td:nth-child(2)::before { content: '股數 '; }
+    /* 各表的金額 td (最後一個) 絕對定位右下 */
+    #securitiesTable td:nth-child(3),
+    #businessTable td:nth-child(2),
+    #claimTable td:nth-child(2),
+    #insuranceTable td:nth-child(2),
+    #antiqueTable td:nth-child(2),
+    #virtualTable td:nth-child(2) {
+      position: absolute !important;
+      bottom: 10px !important;
+      right: 4px !important;
+      display: block !important;
+      grid-column: unset !important;
+      grid-row: unset !important;
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e40af;
+      text-align: right !important;
+      white-space: nowrap;
+      max-width: 160px;
+      padding: 0 !important;
+    }
+    /* vehicle 4 欄: 類型 / 名稱 / owner / 金額 */
+    #vehicleTable td:nth-child(1) {
+      display: inline-block !important;
+      grid-column: unset !important;
+      grid-row: unset !important;
+      margin-right: 6px;
+    }
+    #vehicleTable td:nth-child(2) {
+      display: inline-block !important;
+      grid-column: unset !important;
+      grid-row: unset !important;
+      font-size: 14px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    #vehicleTable td:nth-child(3) {  /* desktop owner column，mobile 隱藏 */
+      display: none !important;
+    }
+    #vehicleTable td:nth-child(4) {
+      position: absolute !important;
+      bottom: 10px !important;
+      right: 4px !important;
+      display: block !important;
+      grid-column: unset !important;
+      grid-row: unset !important;
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e40af;
+      text-align: right !important;
+      white-space: nowrap;
+      max-width: 160px;
+      padding: 0 !important;
+    }
+
+    /* 不動產表 (7 欄: 地段/類型/總面積/原因/取得價/持分總價/所有人) */
+    #realEstateTable tr {
+      display: block !important;
+      padding: 14px 4px;
+      position: relative;
+    }
+    /* (1) 地段：block 大字，右側預留 110px 給所有人 */
+    #realEstateTable td:nth-child(1) {
+      display: block !important;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      padding-right: 110px !important;
+    }
+    /* (7) td 本身 block 平躺，內部 .re-owner-wrap 絕對定位到右上 */
+    #realEstateTable td:nth-child(7) {
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    #realEstateTable .re-owner-wrap {
+      position: absolute;
+      top: 14px;
+      right: 4px;
+      font-size: 12px;
+      color: #475569;
+      text-align: right;
+      white-space: nowrap;
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* (2) 類型 + (4) 取得原因：第 2 行 inline-block */
+    #realEstateTable td:nth-child(2),
+    #realEstateTable td:nth-child(4) {
+      display: inline-block !important;
+      font-size: 12px;
+      color: #64748b;
+      margin: 0 6px 0 0 !important;
+      padding: 0 !important;
+      vertical-align: middle;
+    }
+    /* (3)(5)(6) 數值在 mobile 全部隱藏，改由 .re-mobile-extra 統一呈現 */
+    #realEstateTable td:nth-child(3),
+    #realEstateTable td:nth-child(5),
+    #realEstateTable td:nth-child(6) {
+      display: none !important;
+    }
+    /* td(7) 內附帶的 mobile-only 區塊 */
+    #realEstateTable .re-mobile-extra {
+      display: block !important;
+      margin-top: 8px;
+    }
+    /* 4 數字用 grid：[標 值 / 標 值]，總/持分各佔半邊 */
+    .re-mobile-extra .re-row {
+      display: grid;
+      grid-template-columns: auto 1fr 12px auto 1fr;
+      column-gap: 6px;
+      align-items: baseline;
+      padding: 2px 0;
+    }
+    .re-mobile-extra .re-label {
+      font-size: 11px;
+      color: #94a3b8;
+      white-space: nowrap;
+    }
+    .re-mobile-extra .re-val-sm {
+      font-size: 12px;
+      color: #64748b;
+      white-space: nowrap;
+    }
+    .re-mobile-extra .re-val-lg {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      white-space: nowrap;
+    }
+    .re-mobile-extra .re-val-lg.re-blue { color: #1e40af; }
+    .re-mobile-extra .re-sep {
+      color: #cbd5e1;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    /* 交通工具表 (4 欄: 類型/名稱/所有人/取得價額) */
+    /* 舊 grid layout 已被上方統一 block layout 取代 */
+  }
+
+  /* Card header row 並列佈局 */
+  .card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .card-summary-inline {
+    text-align: right;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .card-summary-inline b {
+    color: #0f172a;
+    font-weight: 600;
+  }
+
+  /* 分頁控制 */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding-top: 14px;
+    margin-top: 8px;
+    border-top: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+  }
+  .pagination:empty { display: none; }
+  .pagination button {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 32px;
+  }
+  .pagination button:hover:not(:disabled):not(.active) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  .pagination button.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+    font-weight: 600;
+  }
+  .pagination button:disabled {
+    color: #cbd5e1;
+    cursor: not-allowed;
+  }
+  .pagination .ellipsis {
+    color: #94a3b8;
+    padding: 0 4px;
+    font-size: 12px;
+  }
+  .pagination .info {
+    margin-left: 8px;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  /* 同公司持有者按鈕 */
+  .co-holder-btn {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .co-holder-btn:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+  }
+
+  /* 同公司持有者 modal (bottom sheet 樣式) */
+  #coHolderOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  #coHolderOverlay.visible { opacity: 1; }
+  /* 同公司持有者 row：左側姓名+meta；右側金額用絕對定位確保不被擠出 */
+  .ch-row {
+    display: block;
+    position: relative;
+    padding: 8px 100px 8px 12px;
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .ch-row:hover { background: #f1f5f9; }
+  .ch-info { min-width: 0; overflow: hidden; }
+  .ch-name {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ch-meta {
+    font-size: 12px;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+  .ch-amt {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: #1e40af;
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+    max-width: 90px;
+  }
+  /* 同公司持有者 modal — 置中卡片，動畫從下方滑入 */
+  #coHolderSheet {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, 100vh);  /* 初始：藏在 viewport 底下 */
+    z-index: 301;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.2);
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 32px);
+    max-width: 420px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #coHolderSheet.open {
+    transform: translate(-50%, -50%);  /* 開啟：置中 */
+    opacity: 1;
+  }
+
+  /* Card */
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+
+  .card-desc {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .stat-number {
+      font-size: 28px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .stat-number {
+      font-size: 24px;
+    }
+
+    .timeline {
+      gap: 12px;
+    }
+
+    .timeline-item {
+      min-width: 80px;
+    }
+  }
+  /* Loading overlay */
+  #loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+  #loading-overlay.fade-out { opacity: 0; }
+  #loading-overlay.hidden { display: none; }
+  #loading-pct {
+    font-size: 5rem;
+    font-weight: 800;
+    color: #1e293b;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.05em;
+    line-height: 1;
+    text-align: center;
+  }
+  .loading-label {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 0.5rem;
+    text-align: center;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+  }
+  main { transition: filter 0.25s ease; }
+
+  /* 桌機 8 大區塊雙欄 masonry: 不切斷區塊 + 統一外距 */
+  @media (min-width: 768px) {
+    .sections-grid > div {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      margin-top: 0 !important;
+      margin-bottom: 1.5rem;
+      display: inline-block; /* 強化 break-inside-avoid (Safari) */
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body class="bg-slate-50">
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div>
+    <div id="loading-pct">0%</div>
+    <div class="loading-label">載入資料中</div>
+  </div>
+</div>
+
+<!-- Main content (mobile-first; 桌機加寬並把 8 大區塊改成雙欄 masonry) -->
+<main class="max-w-md md:max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
+
+  <!-- Back button -->
+  <a href="index.html" class="inline-flex items-center gap-2 text-sm text-indigo-600 font-medium mb-4 hover:underline">
+    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    返回搜尋
+  </a>
+
+  <!-- Hero: avatar + name + org/title -->
+  <div class="flex items-start gap-4 mb-2">
+    <div id="politicianAvatar" class="av-central w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shrink-0">—</div>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-3xl font-bold tracking-tight text-slate-900 leading-tight" id="politicianName">載入中...</h1>
+      <div class="text-sm text-slate-500 mt-1">
+        <span id="politicianOrg"></span><span id="politicianTitle"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline (年份 chips 橫滑) -->
+  <div class="mt-5 -mx-4 px-4 flex gap-2 overflow-x-auto" id="timeline" style="scrollbar-width:none">
+    <div class="text-slate-400 text-sm">載入中...</div>
+  </div>
+  <!-- 隱藏 select 保留給原本 JS 用 -->
+  <select id="yearSelect" class="hidden"></select>
+
+  <!-- 含配偶 toggle -->
+  <div class="mt-4 flex items-center justify-between bg-white rounded-2xl p-4 shadow-soft">
+    <div>
+      <div class="text-sm font-medium text-slate-700">含配偶／未成年子女</div>
+      <div class="text-xs text-slate-400 mt-0.5">關閉只顯示本人申報資產</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="includeFamily" checked>
+      <span class="switch-slider"></span>
+    </label>
+  </div>
+
+  <!-- 淨資產 hero card (indigo gradient; 桌機橫向 flex 避免兩側空虛) -->
+  <div class="mt-4 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 md:px-8 md:py-7 text-white shadow-card md:flex md:items-center md:justify-between md:gap-8">
+    <div>
+      <div class="text-xs uppercase tracking-widest opacity-70 font-medium">淨資產估計</div>
+      <div class="num font-bold text-4xl md:text-5xl mt-1 tracking-tight" id="netAssets">—</div>
+    </div>
+    <div class="text-xs mt-2 md:mt-0 opacity-80 md:text-right md:max-w-xs md:text-sm md:leading-relaxed">含實價登錄估值 · 含配偶／未成年子女</div>
+  </div>
+
+  <!-- 4 大資產 (手機 2x2 / 桌機 4 欄一列) -->
+  <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="bg-white rounded-2xl p-4 shadow-soft">
+      <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center mb-2">
+        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <div class="text-xs text-slate-500">存款</div>
+      <div class="num font-bold text-lg text-slate-900 mt-0.5" id="depositAmount">—</div>
+    </div>
+    <div class="bg-white rounded-2xl p-4 shadow-soft">
+      <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-2">
+        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m3 17 6-6 4 4 8-8"/></svg>
+      </div>
+      <div class="text-xs text-slate-500">有價證券</div>
+      <div class="num font-bold text-lg text-slate-900 mt-0.5" id="securitiesAmount">—</div>
+    </div>
+    <div class="bg-white rounded-2xl p-4 shadow-soft">
+      <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/></svg>
+      </div>
+      <div class="text-xs text-slate-500">不動產</div>
+      <div class="num font-bold text-lg text-slate-900 mt-0.5" id="realEstateAmount">—</div>
+    </div>
+    <div class="bg-white rounded-2xl p-4 shadow-soft">
+      <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center mb-2">
+        <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m3 7 6 6 4-4 8 8M21 17v-6h-6"/></svg>
+      </div>
+      <div class="text-xs text-slate-500">負債</div>
+      <div class="num font-bold text-lg text-slate-900 mt-0.5" id="debtAmount">—</div>
+    </div>
+  </div>
+
+  <!-- 其他資產類別 (手機 2 欄 / 桌機 4 欄) -->
+  <div class="mt-3 bg-white rounded-2xl p-4 shadow-soft">
+    <div class="text-xs text-slate-500 mb-3 font-medium">其他資產類別</div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2.5 text-sm">
+      <div class="flex justify-between"><span class="text-slate-500">交通工具</span><span class="num font-semibold text-slate-700" id="vehicleAmount">—</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">現金</span><span class="num font-semibold text-slate-700" id="cashAmount">—</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">事業投資</span><span class="num font-semibold text-slate-700" id="investmentAmount">—</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">債權</span><span class="num font-semibold text-slate-700" id="claimAmount">—</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">其他有價資產</span><span class="num font-semibold text-slate-700" id="antiqueAmount">—</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">虛擬資產</span><span class="num font-semibold text-slate-700" id="virtualAmount">—</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">保險</span><span class="num font-semibold text-slate-700" id="insuranceAmount">—</span></div>
+    </div>
+  </div>
+
+<!-- 8 大資產清單 (手機單欄 / 桌機 2 欄 masonry-like) -->
+<div class="md:columns-2 md:gap-x-6 sections-grid mt-6">
+  <!-- ── 土地與建物 ── -->
+  <div class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden" id="realEstateSection">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">土地與建物</div>
+        <div class="text-xs text-slate-500 mt-0.5">含取得價額與持分總價</div>
+      </div>
+      <div id="realEstateInlineTotal" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <!-- chart 區隱藏不要佔位 (保留 element 讓 JS populate 不報錯) -->
+    <div id="realEstateChart" class="hidden"></div>
+    <div id="realEstateCountChart" class="hidden">—</div>
+    <div id="realEstateLegend" class="hidden"></div>
+    <div id="realEstateSummary" class="hidden"></div>
+    <div id="realEstateTable" class="divide-y divide-slate-50"></div>
+    <div id="realEstatePagination" class="pagination py-4"></div>
+    <div id="realEstateDisclaimer" style="display:none"></div>
+  </div>
+
+  <!-- ── 有價證券 ── -->
+  <div class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">有價證券</div>
+        <div class="text-xs text-slate-500 mt-0.5">股票、基金、債券；上市/上櫃以最新收盤價估</div>
+      </div>
+      <div id="securitiesSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="securitiesTable" class="divide-y divide-slate-50"></div>
+    <div id="securitiesPagination" class="pagination py-4"></div>
+  </div>
+
+  <!-- ── 事業投資 ── -->
+  <div class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">事業投資</div>
+        <div class="text-xs text-slate-500 mt-0.5">持股、出資及轉投資事業</div>
+      </div>
+      <div id="businessSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="businessTable" class="divide-y divide-slate-50"></div>
+    <div id="businessPagination" class="pagination py-4"></div>
+  </div>
+
+  <!-- ── 債務 ── -->
+  <div id="debtSection" class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden" style="display:none">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">債務</div>
+        <div class="text-xs text-slate-500 mt-0.5">貸款、借貸、保單質借等</div>
+      </div>
+      <div id="debtSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="debtTable" class="divide-y divide-slate-50"></div>
+    <div id="debtPagination" class="pagination py-4"></div>
+  </div>
+
+  <!-- ── 交通工具 ── -->
+  <div class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">交通工具</div>
+        <div class="text-xs text-slate-500 mt-0.5">汽車、船舶、航空器</div>
+      </div>
+      <div id="vehicleSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="vehicleTable" class="divide-y divide-slate-50"></div>
+    <div id="vehiclePagination" class="pagination py-4"></div>
+  </div>
+
+  <!-- ── 債權 ── -->
+  <div id="claimSection" class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden" style="display:none">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">債權</div>
+        <div class="text-xs text-slate-500 mt-0.5">對他人之債權（應收）</div>
+      </div>
+      <div id="claimSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="claimTable" class="divide-y divide-slate-50"></div>
+    <div id="claimPagination" class="pagination py-4"></div>
+  </div>
+
+  <!-- ── 保險 ── -->
+  <div id="insuranceSection" class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden" style="display:none">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">保險</div>
+        <div class="text-xs text-slate-500 mt-0.5">儲蓄型、投資型保單（原始 PDF 無金額欄）</div>
+      </div>
+      <div id="insuranceSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="insuranceTable" class="divide-y divide-slate-50"></div>
+    <div id="insurancePagination" class="pagination py-4"></div>
+  </div>
+
+  <!-- ── 古董珠寶 ── -->
+  <div id="antiqueSection" class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden" style="display:none">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">其他有價資產</div>
+        <div class="text-xs text-slate-500 mt-0.5">古董珠寶／債權／虛擬資產／其他資產</div>
+      </div>
+      <div id="antiqueSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="antiqueTable" class="divide-y divide-slate-50"></div>
+    <div id="antiquePagination" class="pagination py-4"></div>
+  </div>
+
+  <!-- ── 虛擬資產 ── -->
+  <div id="virtualSection" class="mt-6 bg-white rounded-2xl shadow-soft overflow-hidden" style="display:none">
+    <div class="p-5 pb-3 flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-slate-900">虛擬資產</div>
+        <div class="text-xs text-slate-500 mt-0.5">虛擬通貨、代幣等</div>
+      </div>
+      <div id="virtualSummary" class="text-right text-xs text-slate-500"></div>
+    </div>
+    <div id="virtualTable" class="divide-y divide-slate-50"></div>
+    <div id="virtualPagination" class="pagination py-4"></div>
+  </div>
+
+</div><!-- /sections-grid 結束 -->
+
+  <!-- Footer Info -->
+  <div class="text-xs text-slate-400 py-4 leading-relaxed" style="max-width:560px;margin:0 auto;padding:16px;text-align:center">
+    <div>資料來源：監察院（由系統自動爬梳建檔，如有錯誤再請協助告知）</div>
+    <div style="margin-top:6px;color:#94a3b8">
+      ※「<span style="color:#7c3aed">實價估</span>」標示者為內政部實價登錄近期同段交易中位數估算，
+      僅供參考，可能與實際取得價或當前市值有落差
+    </div>
+  </div>
+
+</main>
+
+<!-- 同公司持有者 modal -->
+<div id="coHolderOverlay" onclick="closeCoHolders()"></div>
+<div id="coHolderSheet" role="dialog" aria-modal="true">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid #e2e8f0">
+    <div>
+      <h3 id="coHolderTitle" style="font-size:16px;font-weight:700;color:#0f172a"></h3>
+      <p id="coHolderSubtitle" style="font-size:12px;color:#64748b;margin-top:2px"></p>
+    </div>
+    <button onclick="closeCoHolders()" style="background:#f1f5f9;color:#64748b;border:none;width:30px;height:30px;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+  </div>
+  <div id="coHolderList" style="padding:8px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1"></div>
+</div>
+
+<script>
+  // ── Static JSON 載入（不再用 Flask API）──
+  const DATA_BASE = 'data/per';
+  let allDeclarations = [];
+  let allDetails = {};
+  let selectedYear = null;
+  let securitiesIndex = null;  // 延遲載入
+
+  // 表格分頁狀態
+  const PAGE_SIZE = 10;
+  const tableState = {
+    realEstate: { data: [], page: 1, render: null },
+    securities: { data: [], page: 1, render: null },
+    business:   { data: [], page: 1, render: null },
+    debt:       { data: [], page: 1, render: null },
+    vehicle:    { data: [], page: 1, render: null },
+    claim:      { data: [], page: 1, render: null },
+    insurance:  { data: [], page: 1, render: null },
+    antique:    { data: [], page: 1, render: null },
+    virtual:    { data: [], page: 1, render: null },
+  };
+
+  function renderTablePage(key) {
+    const st = tableState[key];
+    const tbody = document.getElementById(key + 'Table');
+    const pag = document.getElementById(key + 'Pagination');
+    if (!st.data || st.data.length === 0) {
+      if (pag) pag.innerHTML = '';
+      return;
+    }
+    const total = st.data.length;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    if (st.page > totalPages) st.page = totalPages;
+    if (st.page < 1) st.page = 1;
+    const start = (st.page - 1) * PAGE_SIZE;
+    const visible = st.data.slice(start, start + PAGE_SIZE);
+    tbody.innerHTML = visible.map(st.render).join('');
+
+    // 渲染分頁控制
+    if (totalPages <= 1) {
+      pag.innerHTML = '';
+      return;
+    }
+    const pages = [];
+    const cur = st.page;
+    pages.push(`<button onclick="goPage('${key}', ${cur - 1})" ${cur === 1 ? 'disabled' : ''}>‹</button>`);
+    // 顯示頁碼：1 ... cur-1, cur, cur+1 ... last
+    const showPages = new Set([1, totalPages, cur, cur - 1, cur + 1]);
+    let lastP = 0;
+    for (let p = 1; p <= totalPages; p++) {
+      if (!showPages.has(p)) continue;
+      if (lastP && p > lastP + 1) pages.push('<span class="ellipsis">…</span>');
+      pages.push(`<button class="${p === cur ? 'active' : ''}" onclick="goPage('${key}', ${p})">${p}</button>`);
+      lastP = p;
+    }
+    pages.push(`<button onclick="goPage('${key}', ${cur + 1})" ${cur === totalPages ? 'disabled' : ''}>›</button>`);
+    pages.push(`<span class="info">${start + 1}-${Math.min(start + PAGE_SIZE, total)} / ${total}</span>`);
+    pag.innerHTML = pages.join('');
+  }
+
+  function goPage(key, page) {
+    tableState[key].page = page;
+    renderTablePage(key);
+    // 滾到該 table 上方 (兼容舊 .card / 新 .rounded-2xl 容器)
+    const tbl = document.getElementById(key + 'Table');
+    const card = tbl.closest('.card') || tbl.closest('.rounded-2xl');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // co-holder slot 重新 lookup（只對 securities）
+    if (key === 'securities') applyCoHolderTags();
+  }
+
+  function applyCoHolderTags() {
+    const table = document.getElementById('securitiesTable');
+    Promise.all([loadSecuritiesIndex(), loadCodeToShort()]).then(([idx, codeMap]) => {
+      table.querySelectorAll('.co-holder-slot').forEach(slot => {
+        const company = slot.dataset.company;
+        if (!company) return;
+        const secType = slot.dataset.secType || '';
+        const matchCode = slot.dataset.matchCode || '';
+        const norm = companyGroupKey(company, secType, matchCode, codeMap);
+        const entry = idx[norm];
+        if (!entry) return;
+        const others = entry.filter(h => h.politician !== window.__politicianName);
+        if (others.length === 0) return;
+        const uniqOthers = new Set(others.map(h => h.politician)).size;
+        slot.innerHTML = `<button class="co-holder-btn" onclick="showCoHolders('${escapeJs(norm)}', '${escapeJs(company)}')">同 ${uniqOthers} 位公職人員持有 →</button>`;
+      });
+    });
+  }
+
+  let _codeMapCache = null;
+  async function loadCodeToShort() {
+    if (_codeMapCache !== null) return _codeMapCache;
+    try {
+      const r = await fetch('data/code_to_short.json');
+      _codeMapCache = await r.json();
+    } catch { _codeMapCache = {}; }
+    return _codeMapCache;
+  }
+
+  // 載入持股反向索引（lazy）
+  async function loadSecuritiesIndex() {
+    if (securitiesIndex !== null) return securitiesIndex;
+    try {
+      const r = await fetch('data/securities_index.json');
+      securitiesIndex = await r.json();
+    } catch (e) {
+      console.warn('Failed to load securities index:', e);
+      securitiesIndex = {};
+    }
+    return securitiesIndex;
+  }
+
+  function formatNumber(num) {
+    if (num === null || num === undefined || num === 0) return '—';
+    const sign = num < 0 ? '-' : '';
+    num = Math.floor(Math.abs(num));
+    if (num >= 1e8) {
+      const yi = num / 1e8;
+      return sign + (yi >= 100 ? Math.round(yi).toLocaleString() + ' 億' : yi.toFixed(2) + ' 億');
+    }
+    if (num >= 1e4) {
+      return sign + Math.floor(num / 1e4).toLocaleString() + ' 萬';
+    }
+    return sign + num.toLocaleString();
+  }
+
+  function getInitialLetter(name) {
+    return name ? name[0] : '?';
+  }
+
+  // 面積顯示：自適應小數位數，避免持分比例小到讓有效數字被截成 0
+  function fmtAreaSmart(n) {
+    if (!n || n <= 0) return '—';
+    let digits;
+    if (n >= 100) digits = 0;
+    else if (n >= 10) digits = 1;
+    else if (n >= 1) digits = 2;
+    else if (n >= 0.01) digits = 3;
+    else digits = 4;
+    return `${n.toLocaleString(undefined, { maximumFractionDigits: digits })} ㎡`;
+  }
+
+  // 解析持分比例字串為小數
+  function parseRatio(s) {
+    if (s === null || s === undefined) return 1;
+    s = String(s).trim();
+    if (!s || s === '全部') return 1;
+    if (s === '公同共有' || s === '共有') return null;  // 無法精確計算
+    let m = s.match(/^(\d+)\s*分之\s*(\d+)$/);
+    if (m) return parseInt(m[2], 10) / parseInt(m[1], 10);
+    m = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (m) return parseInt(m[1], 10) / parseInt(m[2], 10);
+    m = s.match(/^(\d+(?:\.\d+)?)%$/);
+    if (m) return parseFloat(m[1]) / 100;
+    return null;
+  }
+
+  // 判斷 owner 是「本人」「配偶」還是「其他」
+  function classifyOwner(owner) {
+    if (!owner || owner === '本人' || owner === window.__politicianName) return '本人';
+    if (window.__declSpouseName && owner === window.__declSpouseName) return '配偶';
+    if (owner === '配偶') return '配偶';
+    return '其他';
+  }
+
+  // 渲染所有權人欄位：本人不加標籤、配偶加標籤、其他保留原名
+  function ownerCell(owner) {
+    const safe = (owner || '本人').replace(/</g, '&lt;');
+    const t = classifyOwner(owner);
+    if (t === '配偶') return `<span class="nowrap-name">${safe}</span> <span class="badge-spouse">配偶</span>`;
+    return `<span class="nowrap-name">${safe}</span>`;
+  }
+
+  // 解析年份：支援 ISO（2024-11-01）和民國（114年11月01日 / 民國114年 11月 01日）
+  function parseYear(dateStr) {
+    if (!dateStr) return null;
+    let m = String(dateStr).match(/^(\d{4})-/);
+    if (m) return parseInt(m[1], 10);
+    m = String(dateStr).match(/(\d{1,3})\s*年/);
+    if (m) {
+      const y = parseInt(m[1], 10);
+      return y < 200 ? y + 1911 : y;
+    }
+    return null;
+  }
+
+  function setProgress(pct) {
+    pct = Math.min(100, Math.max(0, Math.round(pct)));
+    const overlay = document.getElementById('loading-overlay');
+    const pctEl = document.getElementById('loading-pct');
+    const main = document.querySelector('main');
+    if (pctEl) pctEl.textContent = `${pct}%`;
+    // blur decreases from 20px → 0px as pct goes 0 → 100
+    const blur = +(20 * (1 - pct / 100)).toFixed(1);
+    if (main) main.style.filter = blur > 0 ? `blur(${blur}px)` : '';
+    if (pct >= 100 && overlay) {
+      overlay.classList.add('fade-out');
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        if (main) main.style.filter = '';
+      }, 520);
+    }
+  }
+
+  async function loadPoliticianData() {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('name');
+
+    if (!name) {
+      // 沒帶 ?name= 參數 → 自動導回首頁搜尋
+      window.location.replace('index.html');
+      return;
+    }
+
+    try {
+      const t0 = performance.now();
+      // 一次 fetch 拿到該人所有歷年申報 + 全部明細（取代之前的 N+1 API 呼叫）
+      const response = await fetch(`${DATA_BASE}/${encodeURIComponent(name)}.json`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      // ReadableStream 追蹤下載進度
+      let data;
+      const contentLength = response.headers.get('Content-Length');
+      if (contentLength && response.body) {
+        const total = parseInt(contentLength, 10);
+        const reader = response.body.getReader();
+        const chunks = [];
+        let loaded = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          setProgress(Math.round(loaded / total * 88));
+        }
+        const buf = new Uint8Array(loaded);
+        let pos = 0;
+        for (const c of chunks) { buf.set(c, pos); pos += c.length; }
+        data = JSON.parse(new TextDecoder().decode(buf));
+      } else {
+        setProgress(30);
+        data = await response.json();
+      }
+      setProgress(92);
+      const ms = Math.round(performance.now() - t0);
+      console.log(`Loaded ${name}.json in ${ms}ms`);
+
+      const pname = data.name || name;
+      document.getElementById('politicianName').textContent = pname;
+      document.title = `${pname} - 財產申報查詢`;
+      window.__politicianName = pname;
+
+      allDeclarations = data.declarations || [];
+      window.__netWorthSummary = data.net_worth_summary || null;
+
+      const latest = allDeclarations[0];
+      const orgEl = document.getElementById('politicianOrg');
+      const titleEl = document.getElementById('politicianTitle');
+      if (latest) {
+        orgEl.textContent = latest.organization || '';
+        if (latest.title) titleEl.textContent = ` · ${latest.title}`;
+      }
+
+      // 頭像：首字 + 機關類別顏色
+      const av = document.getElementById('politicianAvatar');
+      if (av) {
+        const t = latest?.title || '';
+        const org = latest?.organization || '';
+        let cat = '其他';
+        if (/議員|議長|副議長|代表|立法委員/.test(t)) cat = '民意代表';
+        else if (/^(立法院|監察院|司法院|考試院|行政院|總統府|.+部$|.+委員會$|.+署$|.+總處$|中央)/.test(org)) cat = '中央機關';
+        else if (/市政府|縣政府|市議會|縣議會|區公所/.test(org)) cat = '地方機關';
+        else if (/銀行|郵政|台電|台水|台糖|中華電信|交通運輸|公司$/.test(org)) cat = '公營事業';
+        const cls = ({'中央機關':'av-central','地方機關':'av-local','民意代表':'av-council','公營事業':'av-soe'})[cat] || 'av-other';
+        av.className = `${cls} w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shrink-0`;
+        const firstChar = (pname || '?').replace(/\s|[A-Za-z·．‧・.]/g,'')[0] || '?';
+        av.textContent = firstChar;
+      }
+
+      if (allDeclarations.length === 0) {
+        console.error('No declarations found');
+        setProgress(100);
+        return;
+      }
+
+      setProgress(95);
+      // 先建立年度選單，並把預設選成最新年份
+      populateYearSelector();
+      // Timeline (highlight 當前年份)
+      generateTimeline();
+      // 用最新年份的申報資料渲染統計與表格
+      renderForYear(selectedYear);
+      setProgress(100);
+
+    } catch (error) {
+      console.error('Error loading data:', error);
+      document.getElementById('politicianName').textContent = '找不到此人資料';
+      setProgress(100);
+    }
+  }
+
+  function getDeclYear(decl) {
+    // 優先用 build_static_json.py 預算好的 ISO 日期（支援民國年）
+    return parseYear(decl.decl_date_iso || decl.decl_date);
+  }
+
+  function populateYearSelector() {
+    const select = document.getElementById('yearSelect');
+    const yearToDecls = {};
+    allDeclarations.forEach(decl => {
+      const y = getDeclYear(decl);
+      if (!y) return;
+      (yearToDecls[y] = yearToDecls[y] || []).push(decl);
+    });
+    const sortedYears = Object.keys(yearToDecls).map(Number).sort((a, b) => b - a);
+
+    if (sortedYears.length === 0) {
+      select.innerHTML = '<option>無資料</option>';
+      selectedYear = null;
+      return;
+    }
+
+    select.innerHTML = sortedYears.map(y => {
+      const decls = yearToDecls[y];
+      const titles = [...new Set(decls.map(d => d.title).filter(Boolean))];
+      const titleHint = titles.length ? ` (${titles[0]})` : '';
+      return `<option value="${y}">${y} 年${titleHint}</option>`;
+    }).join('');
+
+    // 預設：優先選 money_decl 所在年份（與列表頁一致）；否則選最新年份
+    const nws = window.__netWorthSummary;
+    const nwsYear = nws && nws.money_decl_date_iso ? parseYear(nws.money_decl_date_iso) : null;
+    selectedYear = (nwsYear && sortedYears.includes(nwsYear)) ? nwsYear : sortedYears[0];
+    select.value = String(selectedYear);
+  }
+
+  function renderForYear(year) {
+    const inYear = allDeclarations.filter(d => getDeclYear(d) === year);
+    const moneyDecl = inYear.find(d =>
+      d.total_deposits || d.total_securities || d.total_debt || d.total_cash
+    ) || inYear[0] || {};
+
+    // 配偶名先取出（供 owner 分類用）
+    window.__declSpouseName = (inYear[0] && inYear[0].spouse) || null;
+
+    // 是否含配偶/未成年子女
+    const includeFamilyEl = document.getElementById('includeFamily');
+    const includeFamily = includeFamilyEl ? includeFamilyEl.checked : true;
+    const ownIfStrict = (arr) => includeFamily ? arr : arr.filter(x => classifyOwner(x.owner) === '本人');
+
+    // 收集年內所有 detail rows
+    const allDeposits = [];
+    const allSecurities = [];
+    const allRealEstate = [];
+    const allDebts = [];
+    const allOther = [];
+    for (const decl of inYear) {
+      if (decl.deposits) allDeposits.push(...ownIfStrict(decl.deposits));
+      if (decl.securities) allSecurities.push(...ownIfStrict(decl.securities));
+      if (decl.real_estate) allRealEstate.push(...ownIfStrict(decl.real_estate));
+      if (decl.debts) allDebts.push(...ownIfStrict(decl.debts));
+      if (decl.other_assets) allOther.push(...ownIfStrict(decl.other_assets));
+    }
+    window.__currentOtherAssets = allOther;
+
+    // sum 工具
+    const sumBy = (arr, key) => arr.reduce((s, x) => s + (parseFloat(x[key]) || 0), 0);
+
+    // 其他類別均存在 other_assets 裡，靠 asset_type 區分
+    const cashItems     = allOther.filter(o => (o.asset_type || '').includes('現金'));
+    const claimItems    = allOther.filter(o => (o.asset_type || '').includes('債權'));
+    const insuranceItems= allOther.filter(o => (o.asset_type || '').includes('保險'));
+    const antiqueItems  = allOther.filter(o => (o.asset_type || '').includes('古董') || (o.asset_type || '').includes('珠寶'));
+    const virtualItems  = allOther.filter(o => (o.asset_type || '').includes('虛擬'));
+
+    // 各類 total（含配偶時優先 PDF 印的合計；只本人時必須改用明細）
+    const totalDeposit = includeFamily ? ((moneyDecl.total_deposits) || sumBy(allDeposits, 'twd_amount'))
+                                       : sumBy(allDeposits, 'twd_amount');
+    // 證券：優先用 current_value (市值)；未對應到的退回 twd_amount
+    const sumSecurities = (arr) => arr.reduce((s, x) =>
+      s + (parseFloat(x.current_value) || parseFloat(x.twd_amount) || 0), 0);
+    const totalSecurities = sumSecurities(allSecurities);
+    const totalCash = includeFamily ? ((moneyDecl.total_cash) || sumBy(cashItems, 'amount'))
+                                    : sumBy(cashItems, 'amount');
+    const totalDebt = includeFamily ? ((moneyDecl.total_debt) || sumBy(allDebts, 'balance'))
+                                    : sumBy(allDebts, 'balance');
+    const totalClaim     = sumBy(claimItems, 'amount');
+    const totalInsurance = sumBy(insuranceItems, 'amount');
+    const totalAntique   = sumBy(antiqueItems, 'amount');
+    const totalVirtual   = sumBy(virtualItems, 'amount');
+
+    // 不動產持分總價：優先用後端預計算值（與列表頁數字一致）
+    const nws = window.__netWorthSummary;
+    const nwsYear = nws && nws.money_decl_date_iso ? parseYear(nws.money_decl_date_iso) : null;
+    const realEstateValue = (nws && nwsYear === year)
+      ? (nws.total_real_estate || 0)
+      : allRealEstate.reduce((sum, r) => {
+          const ratio = parseRatio(r.ownership_ratio);
+          const price = parseFloat(r.price) || 0;
+          const est = parseFloat(r.estimated_price) || 0;
+          if (price && ratio) return sum + ratio * price;
+          if (est) return sum + est;
+          return sum;
+        }, 0);
+
+    // 交通工具總價（汽車 + 船舶 + 航空器 的 amount）
+    const vehicleTypes = ['汽車', '船舶', '航空器'];
+    const vehicles = allOther.filter(o => vehicleTypes.includes(o.asset_type));
+    const totalVehicles = sumBy(vehicles, 'amount');
+
+    // 事業投資總額
+    const investments = allOther.filter(o => o.asset_type === '事業投資');
+    const totalInvestment = sumBy(investments, 'amount');
+
+    // 淨資產 = 所有資產 - 負債（保險不計入：PDF 無金額欄）
+    // 若後端預計算的摘要年份與當前年份一致，直接使用後端數字確保與列表頁一致
+    const netAssets = (nws && nwsYear === year)
+      ? (nws.net_assets || 0)
+      : totalDeposit + totalSecurities + totalCash
+          + realEstateValue + totalVehicles + totalInvestment
+          + totalClaim + totalAntique + totalVirtual
+          - totalDebt;
+
+    // 寫入 stat-mini（找元素則填入）
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatNumber(val); };
+    setVal('depositAmount', totalDeposit);
+    setVal('securitiesAmount', totalSecurities);
+    setVal('realEstateAmount', realEstateValue);
+    setVal('vehicleAmount', totalVehicles);
+    setVal('cashAmount', totalCash);
+    setVal('investmentAmount', totalInvestment);
+    setVal('claimAmount', totalClaim);
+    // 保險原始 PDF 無金額欄 — 改顯示筆數
+    const insEl = document.getElementById('insuranceAmount');
+    if (insEl) insEl.textContent = insuranceItems.length ? `${insuranceItems.length} 件` : '—';
+    setVal('antiqueAmount', totalAntique);
+    setVal('virtualAmount', totalVirtual);
+    setVal('debtAmount', totalDebt);
+    setVal('netAssets', netAssets);
+
+    populateRealEstateTable(allRealEstate, (nws && nwsYear === year) ? nws.total_real_estate : null);
+    populateSecuritiesTable(allSecurities);
+    populateBusinessTable(allSecurities);
+    populateDebtTable(allDebts);
+    populateVehicleTable(vehicles);
+    populateOtherAssetTable('claim',     claimItems,    '無債權申報');
+    populateOtherAssetTable('insurance', insuranceItems,'無保險申報');
+    populateOtherAssetTable('antique',   antiqueItems,  '無古董珠寶申報');
+    populateOtherAssetTable('virtual',   virtualItems,  '無虛擬資產申報');
+
+    // Header meta + timeline
+    const latestInYear = inYear[0];
+    if (latestInYear) {
+      const orgEl = document.getElementById('politicianOrg');
+      const titleEl = document.getElementById('politicianTitle');
+      if (orgEl) orgEl.textContent = latestInYear.organization || '';
+      if (titleEl) titleEl.textContent = latestInYear.title ? ` · ${latestInYear.title}` : '';
+    }
+    updateTimelineActive(year);
+  }
+
+  function generateTimeline() {
+    const timeline = document.getElementById('timeline');
+    const yearMap = {};
+    allDeclarations.forEach(decl => {
+      const y = getDeclYear(decl);
+      if (!y) return;
+      if (!yearMap[y]) yearMap[y] = decl.title || decl.organization || '';
+    });
+    const sortedYears = Object.keys(yearMap).map(Number).sort((a, b) => b - a);
+    timeline.className = '-mx-4 px-4 flex gap-2 overflow-x-auto mt-5';
+    timeline.style.scrollbarWidth = 'none';
+    if (sortedYears.length === 0) {
+      timeline.innerHTML = '<div class="text-slate-400 text-sm">無申報記錄</div>';
+      return;
+    }
+    timeline.innerHTML = sortedYears.map(y => `
+      <button class="year-chip year-chip-inactive" data-year="${y}" onclick="selectYear(${y})">
+        ${y} 年 · ${yearMap[y]}
+      </button>
+    `).join('');
+  }
+
+  function updateTimelineActive(year) {
+    document.querySelectorAll('#timeline .year-chip').forEach(el => {
+      const active = Number(el.dataset.year) === year;
+      el.classList.toggle('year-chip-active', active);
+      el.classList.toggle('year-chip-inactive', !active);
+    });
+  }
+
+  // Year chip 點擊 → 同步 yearSelect + 重新 render
+  function selectYear(year) {
+    selectedYear = year;
+    const sel = document.getElementById('yearSelect');
+    if (sel) sel.value = year;
+    renderForYear(year);
+  }
+
+  // ── 不動產群組化 ─────────────────────────────────────────────
+  function groupRealEstateItems(estates) {
+    // 優先以 build_static_json.py 已計算的 _group_id 分組，避免同物件（土地+建物配對）
+    // 因 location 字串不同（如括號內備註不同）而被拆成兩列。
+    const byGid = {};
+    const noGid = [];
+    for (const e of estates) {
+      const gid = e._group_id;
+      if (gid != null) {
+        if (!byGid[gid]) byGid[gid] = [];
+        byGid[gid].push(e);
+      } else {
+        noGid.push(e);
+      }
+    }
+
+    const groups = [];
+
+    for (const items of Object.values(byGid)) {
+      const cat = items[0].valuation_category || '';
+      const lands = items.filter(e => (e.estate_type || '') === '土地');
+      const builds = items.filter(e => (e.estate_type || '') !== '土地');
+      const section = items[0].location || '';
+      if (cat === '純土地' || (!builds.length && !cat)) {
+        for (const l of lands) groups.push({ section: l.location || section, category: cat, is_pure_land: true, lands: [l], builds: [] });
+        for (const b of builds) groups.push({ section: b.location || section, category: cat, is_pure_land: true, lands: [], builds: [b] });
+      } else if (lands.length || builds.length) {
+        groups.push({ section, category: cat, is_pure_land: false, lands, builds });
+      }
+    }
+
+    // 無 _group_id（舊版 JSON 相容）→ 用 location 分組（原本邏輯）
+    const byLoc = {};
+    for (const e of noGid) {
+      const loc = e.location || '';
+      if (!byLoc[loc]) byLoc[loc] = [];
+      byLoc[loc].push(e);
+    }
+    for (const [loc, items] of Object.entries(byLoc)) {
+      const byCat = {};
+      for (const e of items) {
+        const cat = e.valuation_category || '';
+        if (!byCat[cat]) byCat[cat] = { lands: [], builds: [] };
+        if ((e.estate_type || '') === '土地') byCat[cat].lands.push(e);
+        else byCat[cat].builds.push(e);
+      }
+      for (const [cat, { lands, builds }] of Object.entries(byCat)) {
+        if (cat === '純土地' || (!builds.length && !cat)) {
+          for (const l of lands) groups.push({ section: loc, category: cat, is_pure_land: true, lands: [l], builds: [] });
+          for (const b of builds) groups.push({ section: loc, category: cat, is_pure_land: true, lands: [], builds: [b] });
+        } else if (lands.length || builds.length) {
+          groups.push({ section: loc, category: cat, is_pure_land: false, lands, builds });
+        }
+      }
+    }
+    return groups;
+  }
+
+  // 申報書有時以「100元」等名目價格代替實際金額（贈與、信託等），此閾值以下視同未填價格
+  const NOMINAL_PRICE_MAX = 1000;
+
+  function groupTotalInfo(group) {
+    let total = 0, hasEst = false, hasDecl = false;
+    // 同群組（同地點同類別）內多筆建物常填同一個「房地總價」
+    // 相同 price 只計一次，避免主建物＋共有部分重複加總
+    const seenPrices = new Set();
+    for (const e of [...group.lands, ...group.builds]) {
+      if ((e.lvr_source || '').startsWith('included_in')) continue;
+      const rawPrice = parseFloat(e.price) || 0;
+      const price = rawPrice > NOMINAL_PRICE_MAX ? rawPrice : 0;  // 名目價格視同無填
+      const est   = parseFloat(e.estimated_price) || 0;
+      if (price > 0) {
+        if (!seenPrices.has(price)) {
+          total += price;
+          hasDecl = true;
+          seenPrices.add(price);
+        }
+      } else if (est > 0) {
+        total += est;
+        hasEst = true;
+      }
+    }
+    return { total, hasEst, hasDecl };
+  }
+
+  function populateRealEstateTable(estates, precomputedTotal) {
+    const table = document.getElementById('realEstateTable');
+    const summaryEl = document.getElementById('realEstateSummary');
+
+    if (estates.length === 0) {
+      table.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500">無不動產申報</td></tr>';
+      if (summaryEl) summaryEl.innerHTML = '';
+      return;
+    }
+
+    // 建立群組
+    const reGroups = groupRealEstateItems(estates);
+    const numGroups = reGroups.length;
+
+    const countEl = document.getElementById('realEstateCount');
+    if (countEl) countEl.textContent = numGroups;
+    const countChartEl = document.getElementById('realEstateCountChart');
+    if (countChartEl) countChartEl.textContent = numGroups;
+
+    // 圓餅圖：以群組為單位統計取得原因
+    const reasonCounts = {};
+    reGroups.forEach(g => {
+      const primary = [...g.lands, ...g.builds].find(e => !(e.lvr_source || '').startsWith('included_in')) || g.lands[0] || g.builds[0];
+      const reason = (primary && primary.acquisition_reason) || '未知';
+      reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+    });
+
+    const legend = document.getElementById('realEstateLegend');
+    const chartEl = document.getElementById('realEstateChart');
+    const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e', '#84cc16'];
+    const reasonKeys = Object.keys(reasonCounts).sort((a, b) => reasonCounts[b] - reasonCounts[a]);
+
+    if (chartEl) {
+      let acc = 0;
+      const stops = reasonKeys.map((reason, idx) => {
+        const start = (acc / numGroups) * 360;
+        acc += reasonCounts[reason];
+        const end = (acc / numGroups) * 360;
+        return `${colors[idx % colors.length]} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`;
+      });
+      chartEl.style.background = `conic-gradient(${stops.join(', ')})`;
+    }
+
+    if (legend) {
+      legend.innerHTML = '';
+      reasonKeys.forEach((reason, idx) => {
+        const percent = Math.round(reasonCounts[reason] / numGroups * 100);
+        legend.innerHTML += `
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: ${colors[idx % colors.length]};"></div>
+            <div class="legend-text">${reason} <span class="legend-percent">${percent}%</span></div>
+          </div>`;
+      });
+    }
+
+    // 統計：持分面積 / 持分總價（仍以 flat items 計算以確保精確）
+    if (summaryEl) {
+      const stat = { '本人': { area: 0, value: 0 }, '配偶': { area: 0, value: 0 }, '其他': { area: 0, value: 0 } };
+      let withPrice = 0, withEstimate = 0;
+      estates.forEach(e => {
+        const cls = classifyOwner(e.owner);
+        const area = parseFloat(e.area) || 0;
+        const ratio = parseRatio(e.ownership_ratio);
+        const price = parseFloat(e.price) || 0;
+        const est = parseFloat(e.estimated_price) || 0;
+        if (price > 0) withPrice++;
+        else if (est > 0) withEstimate++;
+        if (ratio !== null) {
+          stat[cls].area += area * ratio;
+          stat[cls].value += (price ? price * ratio : 0) + est;
+        } else {
+          stat[cls].area += area;
+          stat[cls].value += est;
+        }
+      });
+      const fmtArea = fmtAreaSmart;
+      const fmtVal  = n => n ? `${formatNumber(n)} 元` : '—';
+      const rows = ['本人', '配偶', '其他']
+        .filter(k => stat[k].area || stat[k].value)
+        .map(k => `
+          <div class="re-sum-cell re-sum-label">${k}</div>
+          <div class="re-sum-cell re-sum-num">${fmtArea(stat[k].area)}</div>
+          <div class="re-sum-cell re-sum-num">${fmtVal(stat[k].value)}</div>
+        `).join('');
+      const totalCovered = withPrice + withEstimate;
+      const pct = estates.length ? Math.round(totalCovered / estates.length * 100) : 0;
+      summaryEl.innerHTML = `
+        <div class="re-sum-grid">
+          <div class="re-sum-cell re-sum-head"></div>
+          <div class="re-sum-cell re-sum-head">持分面積</div>
+          <div class="re-sum-cell re-sum-head">持分總價</div>
+          ${rows}
+        </div>
+        <div class="re-sum-coverage">有金額 ${withPrice} 筆 + 實價登錄估 ${withEstimate} 筆 / 共 ${estates.length} 筆 (${pct}%)</div>
+      `;
+
+      const totalValue = precomputedTotal != null ? precomputedTotal
+        : stat['本人'].value + stat['配偶'].value + stat['其他'].value;
+      const inlineEl = document.getElementById('realEstateInlineTotal');
+      if (inlineEl) {
+        const estTag = withEstimate ? ` <span style="color:#7c3aed;font-size:10px">(含實價登錄估)</span>` : '';
+        inlineEl.innerHTML = totalValue
+          ? `合計 <b class="text-slate-700">${formatNumber(totalValue)}</b> 元${estTag} · 共 <b class="text-slate-700">${numGroups}</b> 件`
+          : `共 <b class="text-slate-700">${numGroups}</b> 件`;
+      }
+      const discEl = document.getElementById('realEstateDisclaimer');
+      if (discEl) discEl.style.display = withEstimate > 0 ? '' : 'none';
+    }
+
+    // 輔助：從持分比字串建立顯示文字
+    const fmtRatioShort = (rs) => {
+      if (!rs || rs === '全部') return '全部';
+      const m = (rs || '').match(/(\d+)\s*分之\s*(\d+)/);
+      if (m) return `${m[1]}分之${m[2]}`;
+      return rs;
+    };
+
+    // 純土地 / 孤立建物 → 與原來相同的單列顯示
+    const renderSingleRow = (e) => {
+      const reason = (e.acquisition_reason || '').trim();
+      const validReasons = ['買賣','繼承','贈與','交換','徵收補償','領回抵價地','分割繼承','第一次登記','賣出','信託','其他'];
+      let tagKey = '其他';
+      for (const r of validReasons) { if (reason.includes(r)) { tagKey = r; break; } }
+      const ratio = parseRatio(e.ownership_ratio);
+      const area = parseFloat(e.area) || 0;
+      const rawPrice = parseFloat(e.price) || 0;
+      const price = rawPrice > NOMINAL_PRICE_MAX ? rawPrice : 0;  // 名目價格視同無填
+      const shareArea = (ratio !== null && area) ? ratio * area : (ratio === null ? area : null);
+      const shareValue = (ratio !== null && price) ? ratio * price : null;
+      const estPrice = parseFloat(e.estimated_price) || 0;
+      const isBuilding = (e.estate_type || '') === '建物';
+      const icon = isBuilding
+        ? '<svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/></svg>'
+        : '<svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/></svg>';
+      const iconBg = isBuilding ? 'bg-amber-50' : 'bg-teal-50';
+      const src = e.lvr_source || '';
+      const mainPriceText = shareValue
+        ? `<div class="num text-slate-900 font-bold text-base whitespace-nowrap">${formatNumber(shareValue)}</div>`
+        : (estPrice
+            ? `<div class="num text-purple-600 font-bold text-base whitespace-nowrap">${formatNumber(estPrice)}</div>
+               <div class="text-[10px] text-purple-500 mt-0.5 text-right">(實價估)</div>`
+            : '<div class="text-slate-400 text-sm">—</div>');
+      let subParts = [];
+      const locMain = (e.location || '').replace(/[（(].*[）)]/, '').trim();
+      const locExtra = (e.location || '').match(/[（(](.+?)[）)]/);
+      if (locExtra) subParts.push(locExtra[1]);
+      if (area > 0) {
+        if (shareArea && shareArea !== area && shareArea < area * 0.99) {
+          subParts.push(`<span class="num">${fmtAreaSmart(area)}</span> 中 持分 <span class="num text-slate-600 font-medium">${fmtAreaSmart(shareArea)}</span>`);
+        } else {
+          subParts.push(`<span class="num">${fmtAreaSmart(area)}</span>`);
+        }
+      }
+      const ownerName = (e.owner || '').trim();
+      const isSpouse = ownerName && ownerName !== window.__politicianName && classifyOwner(ownerName) === '配偶';
+      const ownerPill = ownerName ? `<span class="pill ${isSpouse ? 'pill-spouse' : 'pill-owner'}">${ownerName}${isSpouse ? '（配偶）' : ''}</span>` : '';
+      const valCat = (e.valuation_category || '').trim();
+      let valCatKey = '';
+      if (valCat.includes('純土地')) valCatKey = 'land';
+      else if (valCat.includes('區分所有')) valCatKey = 'apt';
+      else if (valCat.includes('透天') || valCat.includes('別墅')) valCatKey = 'town';
+      else if (valCat.includes('複合型') || valCat.includes('購地自建')) valCatKey = 'complex';
+      const valCatBadge = valCatKey ? `<span class="tag-valcat valcat-${valCatKey}">${valCat}</span>` : '';
+      return `
+      <div class="p-5">
+        <div class="item-row">
+          <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0">${icon}</div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-slate-900 leading-snug">${locMain || '—'}</div>
+            <div class="text-xs text-slate-400 mt-0.5 leading-snug">${subParts.join(' · ')}</div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              ${reason ? `<span class="tag-acq acq-${tagKey}">${reason}</span>` : ''}
+              ${valCatBadge}
+            </div>
+          </div>
+          <div class="item-right">${mainPriceText}${ownerPill}</div>
+        </div>
+      </div>`;
+    };
+
+    // 配對群組（透天、公寓、複合型）→ 合併一列
+    const renderGroupRow = (group) => {
+      const allItems = [...group.lands, ...group.builds];
+      const primary = allItems.filter(e => !(e.lvr_source || '').startsWith('included_in'));
+      const mainItem = primary[0] || allItems[0];
+      if (!mainItem) return '';
+
+      const cat = group.category || '';
+      const reason = (mainItem.acquisition_reason || '').trim();
+      const validReasons = ['買賣','繼承','贈與','交換','徵收補償','領回抵價地','分割繼承','第一次登記','賣出','信託','其他'];
+      let tagKey = '其他';
+      for (const r of validReasons) { if (reason.includes(r)) { tagKey = r; break; } }
+
+      const locMain = (group.section || '').replace(/[（(].*[）)]/,'').trim();
+
+      // icon + 顏色依分類
+      let iconBg = 'bg-slate-50', iconColor = 'text-slate-500';
+      if (cat.includes('區分所有')) { iconBg = 'bg-blue-50'; iconColor = 'text-blue-600'; }
+      else if (cat.includes('透天') || cat.includes('別墅')) { iconBg = 'bg-amber-50'; iconColor = 'text-amber-600'; }
+      else if (cat.includes('複合型') || cat.includes('購地自建')) { iconBg = 'bg-purple-50'; iconColor = 'text-purple-600'; }
+      const icon = `<svg class="w-5 h-5 ${iconColor}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/></svg>`;
+
+      // 筆數描述（顯示群組內全部物件，含已併入估算的附屬物）
+      const nL = group.lands.length;
+      const nB = group.builds.length;
+      const pieces = [];
+      if (nL > 0) pieces.push(`${nL} 筆土地`);
+      if (nB > 0) pieces.push(`${nB} 棟建物`);
+      // 建物面積（區分所有建物、透天/別墅、複合型 顯示建物持分總面積）
+      const showBuildArea = cat.includes('區分所有') || cat.includes('透天') || cat.includes('別墅') || cat.includes('複合型') || cat.includes('購地自建') || (!cat && nB > 0);
+      if (showBuildArea && group.builds.length > 0) {
+        const buildShareArea = group.builds.reduce((s, b) => {
+          const area = parseFloat(b.area) || 0;
+          const r = parseRatio(b.ownership_ratio);
+          return s + (r !== null ? area * r : area);
+        }, 0);
+        if (buildShareArea > 0) pieces.push(`建物 <span class="num">${fmtAreaSmart(buildShareArea)}</span>`);
+      }
+      const itemDesc = pieces.join(' · ');
+
+      // 合計金額
+      const { total, hasEst, hasDecl } = groupTotalInfo(group);
+      let priceHtml = '<div class="text-slate-400 text-sm">—</div>';
+      if (total > 0) {
+        const isEst = hasEst && !hasDecl;
+        const isMixed = hasEst && hasDecl;
+        const priceTag = isEst ? `<div class="text-[10px] text-purple-500 mt-0.5 text-right">(實價估)</div>`
+                       : isMixed ? `<div class="text-[10px] text-slate-400 mt-0.5 text-right">(部分估)</div>` : '';
+        priceHtml = `<div class="num ${isEst ? 'text-purple-600' : 'text-slate-900'} font-bold text-base whitespace-nowrap">${formatNumber(total)}</div>${priceTag}`;
+      }
+
+      // category badge
+      let valCatKey = '';
+      if (cat.includes('區分所有')) valCatKey = 'apt';
+      else if (cat.includes('透天') || cat.includes('別墅')) valCatKey = 'town';
+      else if (cat.includes('複合型') || cat.includes('購地自建')) valCatKey = 'complex';
+      const valCatBadge = valCatKey ? `<span class="tag-valcat valcat-${valCatKey}">${cat}</span>` : '';
+
+      // owner pills（唯一值）
+      const ownerSet = new Set(allItems.map(e => (e.owner||'').trim()).filter(Boolean));
+      const ownerPills = [...ownerSet].map(name => {
+        const isSp = name !== window.__politicianName && classifyOwner(name) === '配偶';
+        return `<span class="pill ${isSp ? 'pill-spouse' : 'pill-owner'}">${name}${isSp ? '（配偶）' : ''}</span>`;
+      }).join('');
+
+      return `
+      <div class="p-5">
+        <div class="item-row">
+          <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0">${icon}</div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-slate-900 leading-snug">${locMain || '—'}</div>
+            <div class="text-xs text-slate-400 mt-0.5 leading-snug">${itemDesc}</div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              ${reason ? `<span class="tag-acq acq-${tagKey}">${reason}</span>` : ''}
+              ${valCatBadge}
+            </div>
+          </div>
+          <div class="item-right">${priceHtml}${ownerPills}</div>
+        </div>
+      </div>`;
+    };
+
+    // 統一 render 函數：純土地 → 單列；配對群組 → 合併列
+    const renderGroup = (g) => g.is_pure_land
+      ? renderSingleRow(g.lands[0] || g.builds[0])
+      : renderGroupRow(g);
+
+    tableState.realEstate = { data: reGroups, page: 1, render: renderGroup };
+    renderTablePage('realEstate');
+  }
+
+  function populateVehicleTable(vehicles) {
+    const table = document.getElementById('vehicleTable');
+    const summaryEl = document.getElementById('vehicleSummary');
+    const st = tableState.vehicle = tableState.vehicle || { data: [], page: 1, render: null };
+
+    if (!vehicles || vehicles.length === 0) {
+      table.innerHTML = '<div class="px-5 py-8 text-center text-slate-400 text-sm">無交通工具申報</div>';
+      if (summaryEl) summaryEl.innerHTML = '';
+      const pag = document.getElementById('vehiclePagination'); if (pag) pag.innerHTML = '';
+      return;
+    }
+    const total = vehicles.reduce((s, v) => s + (parseFloat(v.amount) || 0), 0);
+    if (summaryEl) {
+      summaryEl.innerHTML = total
+        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${vehicles.length}</b> 件`
+        : `共 <b class="text-slate-700">${vehicles.length}</b> 件`;
+    }
+    const renderRow = (v) => {
+      const ownerName = (v.owner || '').trim();
+      const isSpouse = ownerName && ownerName !== window.__politicianName && classifyOwner(ownerName) === '配偶';
+      const ownerPill = ownerName
+        ? `<span class="pill ${isSpouse ? 'pill-spouse' : 'pill-owner'}">${ownerName}${isSpouse ? '（配偶）' : ''}</span>`
+        : '';
+      const dateText = v.details ? (() => { try { const arr = JSON.parse(v.details); return arr[3] || ''; } catch { return ''; } })() : '';
+      return `
+      <div class="p-5">
+        <div class="item-row">
+          <div class="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 17h14M5 17l-2-4 2-6h14l2 6-2 4M7 11h10"/></svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-slate-900">${v.name || '—'}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${v.asset_type || ''}${dateText ? ` · ${dateText}` : ''}</div>
+          </div>
+          <div class="item-right">
+            <div class="num text-slate-900 font-bold text-base">${v.amount ? formatNumber(v.amount) : '—'}</div>
+            ${ownerPill}
+          </div>
+        </div>
+      </div>`;
+    };
+    st.data = vehicles;
+    st.page = 1;
+    st.render = renderRow;
+    renderTablePage('vehicle');
+  }
+
+  // 通用：渲染 other_assets 分類表（債權/保險/古董/虛擬資產）
+  function populateOtherAssetTable(key, items, emptyText) {
+    const section  = document.getElementById(key + 'Section');
+    const tbody    = document.getElementById(key + 'Table');
+    const summary  = document.getElementById(key + 'Summary');
+    const pag      = document.getElementById(key + 'Pagination');
+    if (!section || !tbody) return;
+
+    // 防禦性二次過濾：避免 toggle off 時，本函式被傳入未過濾的 items（鄭麗君債權 case）
+    const includeFamilyEl = document.getElementById('includeFamily');
+    const includeFamily = includeFamilyEl ? includeFamilyEl.checked : true;
+    if (!includeFamily && items) {
+      items = items.filter(it => classifyOwner(it.owner) === '本人');
+    }
+
+    if (!items || items.length === 0) {
+      section.style.display = 'none';
+      if (pag) pag.innerHTML = '';
+      return;
+    }
+    section.style.display = '';
+
+    // 保險區：PDF 沒金額欄，只顯示筆數；右欄改顯示所有人標籤
+    const isInsurance = (key === 'insurance');
+    const total = items.reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
+    const withAmount = items.filter(x => parseFloat(x.amount)).length;
+    if (summary) {
+      if (isInsurance) {
+        summary.innerHTML = `共 <b class="text-slate-700">${items.length}</b> 件保單`;
+      } else {
+        summary.innerHTML = `合計 <b class="text-slate-700">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${items.length}</b> 件`;
+      }
+    }
+
+    // icon + 色 by 類別
+    const ICON_MAP = {
+      insurance: { bg: 'bg-rose-50', color: 'text-rose-600', svg: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z"/>' },
+      claim:     { bg: 'bg-yellow-50', color: 'text-yellow-600', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 8c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2m0-8V6m0 8v2"/>' },
+      antique:   { bg: 'bg-fuchsia-50', color: 'text-fuchsia-600', svg: '<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>' },
+      virtual:   { bg: 'bg-violet-50', color: 'text-violet-600', svg: '<circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/>' },
+    };
+    const ic = ICON_MAP[key] || ICON_MAP.virtual;
+    const renderRow = (it) => {
+      const ownerName = (it.owner || '').trim();
+      const isSpouse = ownerName && ownerName !== window.__politicianName && classifyOwner(ownerName) === '配偶';
+      const ownerPill = ownerName
+        ? `<span class="pill ${isSpouse ? 'pill-spouse' : 'pill-owner'}">${ownerName}${isSpouse ? '（配偶）' : ''}</span>`
+        : '';
+      const rightBlock = isInsurance
+        ? ownerPill
+        : `${it.amount ? `<div class="num text-slate-900 font-bold text-base">${formatNumber(it.amount)}</div>` : '<div class="text-slate-400 text-sm">—</div>'}${ownerPill}`;
+      return `
+      <div class="p-5">
+        <div class="item-row">
+          <div class="w-10 h-10 rounded-xl ${ic.bg} flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 ${ic.color}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${ic.svg}</svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-slate-900 leading-snug">${it.name || it.asset_type || '—'}</div>
+          </div>
+          <div class="item-right">
+            ${rightBlock}
+          </div>
+        </div>
+      </div>`;
+    };
+    tableState[key].data = items;
+    tableState[key].page = 1;
+    tableState[key].render = renderRow;
+    renderTablePage(key);
+  }
+
+  function populateSecuritiesTable(securities) {
+    const table = document.getElementById('securitiesTable');
+    const summaryEl = document.getElementById('securitiesSummary');
+
+    if (securities.length === 0) {
+      table.innerHTML = '<div class="px-5 py-8 text-center text-slate-400 text-sm">無有價證券申報</div>';
+      if (summaryEl) summaryEl.innerHTML = '';
+      return;
+    }
+    const total = securities.reduce((s, x) => s + (parseFloat(x.current_value) || parseFloat(x.twd_amount) || 0), 0);
+    if (summaryEl) {
+      summaryEl.innerHTML = total
+        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${securities.length}</b> 筆`
+        : '';
+    }
+    const renderRow = (s) => {
+      const company = (s.name || '').trim();
+      const cv = parseFloat(s.current_value) || 0;
+      const tw = parseFloat(s.twd_amount) || 0;
+      let amtHtml;
+      if (cv > 0) {
+        amtHtml = `<div class="num text-indigo-600 font-bold text-base whitespace-nowrap">${formatNumber(cv)}</div>`;
+      } else if (tw > 0) {
+        amtHtml = `<div class="num text-slate-900 font-bold text-base whitespace-nowrap">${formatNumber(tw)}</div>
+                   <div class="text-[10px] text-purple-500 mt-0.5 text-right">(申報值)</div>`;
+      } else {
+        amtHtml = '<div class="text-slate-400 text-sm">—</div>';
+      }
+      // 防禦：若 owner 是錯置的證券識別碼 (CUSIP/ISIN, 純英數大寫且含數字) → 視為 match_code
+      let ownerName = (s.owner || '').trim();
+      let extraCode = '';
+      if (ownerName && /^[A-Z][A-Z0-9]{7,}$/.test(ownerName) && /\d/.test(ownerName)) {
+        extraCode = ownerName;
+        ownerName = '';
+      }
+      const isSpouse = ownerName && ownerName !== window.__politicianName && classifyOwner(ownerName) === '配偶';
+      const ownerPill = ownerName
+        ? `<span class="pill ${isSpouse ? 'pill-spouse' : 'pill-owner'}">${ownerName}${isSpouse ? '（配偶）' : ''}</span>`
+        : '';
+      // 副標：代號 @ 價格 · 股數 (沒有市價時退用 match_code 或錯置回收的 extraCode)
+      const fallbackCode = s.match_code || extraCode;
+      const codeText = s.match_code && s.match_close
+        ? `${s.match_code} @ ${s.match_close}`
+        : (fallbackCode || s.sec_type || '');
+      const qtyUnit = s.sec_type === '基金' ? '單位' : '股';
+      const qty = s.quantity ? `${Math.floor(s.quantity).toLocaleString()} ${qtyUnit}` : '';
+      return `
+      <div class="p-5">
+        <div class="item-row">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-8"/></svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-slate-900 leading-snug">${company || '—'}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${codeText}${qty ? ` · ${qty}` : ''}</div>
+            <div class="mt-2 flex gap-1.5 flex-wrap items-center">
+              <span class="pill pill-mute">${s.sec_type || ''}</span>
+              ${s.is_trust ? '<span class="tag-acq acq-信託">信託</span>' : ''}
+              <span class="co-holder-slot" data-company="${escapeAttr(company)}" data-sec-type="${escapeAttr(s.sec_type || '')}" data-match-code="${escapeAttr(s.match_code || '')}"></span>
+            </div>
+          </div>
+          <div class="item-right">
+            ${amtHtml}
+            ${ownerPill}
+          </div>
+        </div>
+      </div>`;
+    };
+    tableState.securities = { data: securities, page: 1, render: renderRow };
+    renderTablePage('securities');
+    applyCoHolderTags();
+  }
+
+  function normalizeCompany(name) {
+    if (!name) return '';
+    let n = String(name).replace(/[（(][^）)]*[）)]/g, '');         // 去括號
+    n = n.replace(/股份有限公司|有限公司|集團$/g, '');               // 去後綴
+    n = n.replace(/商業銀行/g, '銀行');                              // XX商業銀行 → XX銀行
+    n = n.replace(/^[\d\s★☆▲▼※◎●○]+/, '');                       // 去前綴符號
+    return n.replace(/\s/g, '').trim();
+  }
+
+  // 同公司不同證券型態必須分群 — 與 build_static_json.py 的 company_group_key 保持一致
+  // 有 match_code 時優先用 TWSE/TPEx 代號 → 簡稱當 key (台灣積體電路製造 = 台積電 = 同 2330 群組)
+  function companyGroupKey(origName, secType, matchCode, codeMap) {
+    const overseas = /[（(][^）)]*(?:國外|海外|ADR|未上市|未上櫃)[^）)]*[）)]/.test(origName || '');
+    const st = (secType || '').trim();
+    const codeShort = (matchCode && codeMap && codeMap[matchCode]) || '';
+    if (matchCode && st === '股票' && !overseas && codeShort) {
+      return codeShort;
+    }
+    const base = normalizeCompany(origName);
+    if (!base) return '';
+    if (st === '其他證券' || overseas) return `${base} (海外)`;
+    if (st === '基金') {
+      if (matchCode && codeShort) return `${codeShort} (基金)`;
+      return `${base} (基金)`;
+    }
+    if (st === '債券' || st === '公債' || st === '其他公債') return `${base} (債券)`;
+    return base;
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function escapeJs(s) {
+    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
+  // 開 modal 顯示同公司其他持有者（normKey = 用 normalize 後 key 查 index, displayName = UI 顯示用）
+  function showCoHolders(normKey, displayName) {
+    if (!securitiesIndex || !securitiesIndex[normKey]) return;
+    const holders = securitiesIndex[normKey].filter(h => h.politician !== window.__politicianName);
+    if (holders.length === 0) return;
+    // 去掉本人申報文字中的個人化備註括號 (e.g. "華通(未交付信託原因：...)" → "華通")
+    if (displayName) displayName = displayName.replace(/[（(][^）)]*[）)]/g, '').trim();
+
+    // 金額：個人頁面用 current_value 優先、退回 twd_amount；modal 也同步
+    const _amt = (h) => h.current_value || h.twd_amount || 0;
+    // 按 politician 聚合：先比年份 (取最新)，同年再比金額 (取較大筆 — 通常本人 > 配偶單一持股)
+    const byPolit = {};
+    holders.forEach(h => {
+      const cur = byPolit[h.politician];
+      if (!cur) { byPolit[h.politician] = h; return; }
+      const yh = parseInt(h.year || '0', 10);
+      const yc = parseInt(cur.year || '0', 10);
+      if (yh > yc) byPolit[h.politician] = h;
+      else if (yh === yc && _amt(h) > _amt(cur)) byPolit[h.politician] = h;
+    });
+    const list = Object.values(byPolit).sort((a, b) => _amt(b) - _amt(a));
+
+    const rows = list.map(h => {
+      const ownerLabel = (!h.owner || h.owner === h.politician || h.owner === '本人') ? '本人' : (h.owner === '配偶' ? '配偶' : `${h.owner}（配偶）`);
+      const meta = [h.organization, h.title, ownerLabel, h.year ? `${h.year} 年申報` : ''].filter(x => x && String(x).trim()).join(' · ');
+      const amt = _amt(h);
+      const amtText = amt ? formatNumber(amt) : '—';
+      const unit = (h.sec_type === '基金') ? '單位' : '股';
+      const qtyText = h.quantity ? `${Math.floor(h.quantity).toLocaleString()} ${unit}` : '';
+      return `
+      <a href="profile-page.html?name=${encodeURIComponent(h.politician)}"
+         style="display:block;padding:10px 12px;border-bottom:1px solid #f1f5f9;text-decoration:none;color:inherit">
+        <div style="font-weight:600;color:#0f172a;font-size:14px">
+          ${h.politician}
+          <span style="color:#1e40af;font-weight:700;font-size:14px;margin-left:6px">${amtText}</span>
+          ${qtyText ? `<span style="color:#94a3b8;font-weight:400;font-size:11px;margin-left:4px">(${qtyText})</span>` : ''}
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">${meta}</div>
+      </a>
+    `;
+    }).join('');
+
+    console.log(`%c[coHolders v10] rendering ${list.length} rows for ${displayName || normKey}`, 'color:#dc2626;font-weight:bold;font-size:14px');
+    const overlay = document.getElementById('coHolderOverlay');
+    const sheet = document.getElementById('coHolderSheet');
+    document.getElementById('coHolderTitle').textContent = displayName || normKey;
+    document.getElementById('coHolderSubtitle').textContent = `共 ${list.length} 位公職人員持有`;
+    document.getElementById('coHolderList').innerHTML = rows;
+    // 還原 overlay 為簡單 fixed 黑底
+    overlay.style.cssText = 'display:block;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.45);opacity:0;transition:opacity 0.25s ease';
+    sheet.style.cssText = [
+      'position:fixed',
+      'left:50%',
+      'top:50%',
+      'transform:translate(-50%, 100vh)',
+      'opacity:0',
+      'z-index:301',
+      'background:white',
+      'border-radius:16px',
+      'box-shadow:0 10px 40px rgba(0,0,0,0.2)',
+      'width:calc(100% - 32px)',
+      'max-width:420px',
+      'max-height:70vh',
+      'display:flex',
+      'flex-direction:column',
+      'overflow:hidden',
+      'transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease',
+    ].join(';');
+    sheet.offsetHeight;
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+      sheet.style.transform = 'translate(-50%, -50%)';
+      sheet.style.opacity = '1';
+    });
+    document.body.style.overflow = 'hidden';
+  }
+  function closeCoHolders() {
+    const overlay = document.getElementById('coHolderOverlay');
+    const sheet = document.getElementById('coHolderSheet');
+    overlay.style.opacity = '0';
+    sheet.style.transform = 'translate(-50%, 100vh)';
+    sheet.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 300);
+    document.body.style.overflow = '';
+  }
+  // ESC 關閉
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeCoHolders();
+  });
+
+  function populateBusinessTable(securities) {
+    const table = document.getElementById('businessTable');
+    const summaryEl = document.getElementById('businessSummary');
+
+    // 事業投資只取 other_assets 中 asset_type === '事業投資' 的項目；
+    // 沒有就顯示「無事業投資」(不再 fallback 用基金，避免和證券清單重複)
+    const businesses = (window.__currentOtherAssets || []).filter(o => o.asset_type === '事業投資');
+
+    if (businesses.length === 0) {
+      table.innerHTML = '<div class="px-5 py-8 text-center text-slate-400 text-sm">無事業投資申報</div>';
+      if (summaryEl) summaryEl.innerHTML = '';
+      return;
+    }
+
+    const total = businesses.reduce((s, x) => s + (parseFloat(x.amount || x.twd_amount) || 0), 0);
+    if (summaryEl) {
+      summaryEl.innerHTML = total
+        ? `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${businesses.length}</b> 筆`
+        : '';
+    }
+
+    const renderRow = (b) => {
+      const amt = parseFloat(b.amount || b.twd_amount) || 0;
+      const amtHtml = amt > 0
+        ? `<div class="num text-slate-900 font-bold text-base whitespace-nowrap">${formatNumber(amt)}</div>`
+        : '<div class="text-slate-400 text-sm">—</div>';
+      const ownerName = (b.owner || '').trim();
+      const isSpouse = ownerName && ownerName !== window.__politicianName && classifyOwner(ownerName) === '配偶';
+      const ownerPill = ownerName
+        ? `<span class="pill ${isSpouse ? 'pill-spouse' : 'pill-owner'}">${ownerName}${isSpouse ? '（配偶）' : ''}</span>`
+        : '';
+      const subType = b.sec_type || b.asset_type || '事業投資';
+      return `
+      <div class="p-5">
+        <div class="item-row">
+          <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h0M9 13h0M9 17h0M15 9h0M15 13h0M15 17h0"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-slate-900 leading-snug">${b.name || '—'}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${subType}</div>
+          </div>
+          <div class="item-right">
+            ${amtHtml}
+            ${ownerPill}
+          </div>
+        </div>
+      </div>`;
+    };
+    tableState.business = { data: businesses, page: 1, render: renderRow };
+    renderTablePage('business');
+  }
+
+  function populateDebtTable(debts) {
+    const section = document.getElementById('debtSection');
+    const table   = document.getElementById('debtTable');
+    const summary = document.getElementById('debtSummary');
+    if (!debts || debts.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    const total = debts.reduce((s, d) => s + (parseFloat(d.balance) || 0), 0);
+    if (summary) {
+      summary.innerHTML = `合計 <b class="text-slate-700 num">${formatNumber(total)}</b> 元 · 共 <b class="text-slate-700">${debts.length}</b> 筆`;
+    }
+    const renderRow = (d) => {
+      const kind = (d.kind || '').trim();
+      const reason = (d.acquisition_reason || '').trim();
+      // 標題 = 種類：原因 (e.g. 私人債務：購置經營事業用建築)
+      const title = (kind && reason) ? `${kind}：${reason}` : (kind || reason || '債務');
+      // 副標 = 債權人 (去掉地址，原本是 "債權人 及 地址" 同一欄)
+      // 切法：在第一個「臺/台/縣/市/區/路/街/段...」地址 token 前截斷
+      const creditorRaw = (d.creditor || '').trim();
+      const creditor = creditorRaw.split(/\s+/)[0]
+        .replace(/(?:臺北市|台北市|新北市|桃園市|臺中市|台中市|臺南市|台南市|高雄市|基隆市|新竹市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義市|嘉義縣|屏東縣|宜蘭縣|花蓮縣|臺東縣|台東縣|澎湖縣|金門縣|連江縣).*$/, '')
+        .trim();
+      // 餘額
+      const bal = parseFloat(d.balance) || 0;
+      const balHtml = bal > 0
+        ? `<div class="num text-slate-900 font-bold text-base whitespace-nowrap">${formatNumber(bal)}</div>`
+        : '<div class="text-slate-400 text-sm">—</div>';
+      // 債務人 pill (build_static_json 把 debts.debtor → owner，所以這裡讀 owner)
+      const debtor = (d.owner || d.debtor || '').trim();
+      const isSpouse = debtor && debtor !== window.__politicianName && classifyOwner(debtor) === '配偶';
+      const debtorPill = debtor
+        ? `<span class="pill ${isSpouse ? 'pill-spouse' : 'pill-owner'}">${debtor}${isSpouse ? '（配偶）' : ''}</span>`
+        : '';
+      return `
+      <div class="p-5">
+        <div class="item-row">
+          <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m3 7 6 6 4-4 8 8M21 17v-6h-6"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-slate-900 leading-snug">${title}</div>
+            ${creditor ? `<div class="text-xs text-slate-400 mt-0.5">債權人：${creditor}</div>` : ''}
+          </div>
+          <div class="item-right">
+            ${balHtml}
+            ${debtorPill}
+          </div>
+        </div>
+      </div>`;
+    };
+    tableState.debt = { data: debts, page: 1, render: renderRow };
+    renderTablePage('debt');
+  }
+
+  document.getElementById('includeFamily').addEventListener('change', function() {
+    if (selectedYear) renderForYear(selectedYear);
+  });
+
+  document.getElementById('yearSelect').addEventListener('change', function() {
+    const y = parseInt(this.value, 10);
+    if (!isNaN(y)) {
+      selectedYear = y;
+      renderForYear(y);
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    loadPoliticianData();
+  });
+</script>
+
+</body>
+</html>

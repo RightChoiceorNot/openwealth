@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>廉政透明平台 | 政治人物財產申報</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Design Tokens v3 ── */
+  .num { font-variant-numeric: tabular-nums; }
+  .shadow-soft  { box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+  .shadow-card  { box-shadow: 0 4px 20px rgba(15,23,42,0.06); }
+  .shadow-hover { box-shadow: 0 8px 30px rgba(15,23,42,0.08); }
+  .card-rise { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .card-rise:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(15,23,42,0.08); }
+
+  /* avatar 機關類別 5 色 */
+  .av-central  { background: linear-gradient(135deg, #6366F1, #818CF8); }
+  .av-local    { background: linear-gradient(135deg, #F97316, #FB923C); }
+  .av-council  { background: linear-gradient(135deg, #14B8A6, #5EEAD4); }
+  .av-soe      { background: linear-gradient(135deg, #06B6D4, #22D3EE); }
+  .av-other    { background: linear-gradient(135deg, #94A3B8, #CBD5E1); }
+
+  /* pill */
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 10px; border-radius: 9999px;
+    font-size: 11px; font-weight: 500;
+    line-height: 1.6; white-space: nowrap;
+  }
+  .pill-primary { background: #EEF2FF; color: #4F46E5; }
+  .pill-mute    { background: #F1F5F9; color: #475569; }
+
+  /* chip default + active state (org type chips) */
+  .org-chip { background:#FFFFFF; color:#475569; box-shadow:0 2px 8px rgba(15,23,42,0.04); transition:.15s; }
+  .org-chip[data-type="中央機關"] { color:#4F46E5; }
+  .org-chip[data-type="地方機關"] { color:#EA580C; }
+  .org-chip[data-type="民意代表"] { color:#0D9488; }
+  .org-chip[data-type="公營事業"] { color:#0891B2; }
+  .org-chip[data-type="其他"]     { color:#64748B; }
+  .org-chip.is-active { background:#4F46E5; color:white; box-shadow:0 4px 20px rgba(79,70,229,0.22); }
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .input-base {
+    width: 100%;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #0f172a;
+    transition: all 0.2s ease;
+  }
+  .input-base:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+  .input-base::placeholder { color: #94a3b8; }
+
+  /* ── Mobile filter button + bottom sheet ── */
+  .mobile-filter-btn {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    background: white;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .mobile-filter-btn.has-filter {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #2563eb;
+  }
+  .mobile-filter-btn .badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: white;
+    border-radius: 999px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 11px;
+    padding: 0 5px;
+  }
+
+  #filter-sheet-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  #filter-sheet-overlay.visible { opacity: 1; }
+
+  #filter-sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 301;
+    background: white;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    box-shadow: 0 -4px 24px rgba(0,0,0,.15);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #filter-sheet.open { transform: translateY(0); }
+  /* 桌機：縮小寬度、置中、改用 modal 樣式（圓角四角） */
+  @media (min-width: 768px) {
+    #filter-sheet {
+      left: 50%; right: auto; bottom: auto; top: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      opacity: 0;
+      pointer-events: none;
+      width: 480px;
+      max-width: calc(100vw - 32px);
+      max-height: 80vh;
+      border-radius: 20px;
+      padding-bottom: 16px;
+    }
+    #filter-sheet.open {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #filter-sheet-handle { display: none; }
+  }
+
+  #filter-sheet-handle {
+    width: 36px; height: 4px;
+    background: #cbd5e1;
+    border-radius: 2px;
+    margin: 12px auto 0;
+    flex-shrink: 0;
+  }
+  #filter-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  #filter-sheet-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  #filter-sheet-close {
+    background: #f1f5f9;
+    color: #64748b;
+    border: none;
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #filter-sheet-body {
+    padding: 18px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #filter-sheet-body label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    display: block;
+  }
+  #filter-sheet-body .filter-select {
+    font-size: 16px !important; /* 防 iOS 自動 zoom */
+    padding: 12px 36px 12px 14px;
+    border-radius: 10px;
+  }
+  #filter-sheet-footer {
+    display: flex;
+    gap: 10px;
+    padding: 14px 18px 18px;
+    border-top: 1px solid #e2e8f0;
+  }
+  #filter-sheet-footer button {
+    flex: 1;
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+  }
+  #filter-reset-btn {
+    background: white;
+    color: #64748b;
+    border: 1.5px solid #e2e8f0;
+  }
+  #filter-apply-btn {
+    background: #2563eb;
+    color: white;
+  }
+  #filter-apply-btn:hover { background: #1d4ed8; }
+
+  /* 響應式：手機隱藏桌面篩選、顯示 mobile button */
+  @media (max-width: 639px) {
+    .desktop-filters { display: none !important; }
+    .mobile-filter-btn { display: inline-flex; }
+
+    /* 表格改成 stacked card layout（每列變一張卡）*/
+    .data-table thead { display: none; }
+    .data-table, .data-table tbody, .data-table tr, .data-table td {
+      display: block;
+    }
+    /* card layout — Grid 對齊，所有資訊完整不截斷 */
+    /* 機關列固定寬足以容納最長名稱 (e.g.「臺北市政府捷運工程局」)，職稱固定欄起始 X 一致 */
+    .data-table tr {
+      position: relative;
+      padding: 14px 4px;
+      border-bottom: 1px solid #e2e8f0;
+      display: grid;
+      grid-template-columns: 140px 1fr auto;  /* 機關固定 140px → 所有人職稱起始 X 對齊 */
+      grid-template-rows: auto auto;
+      column-gap: 10px;
+      row-gap: 4px;
+      align-items: baseline;
+    }
+    .data-table tr:last-child { border-bottom: none; }
+    .data-table tr:hover { background: #f8fafc; }
+    .data-table td {
+      padding: 0;
+      border: none;
+      border-bottom: none !important;  /* 拿掉每個 cell 下方的橫線 */
+      text-align: left !important;
+      white-space: normal;
+      word-break: break-word;
+    }
+    /* (1) 姓名：第 1 行整列 */
+    .data-table td:nth-child(1) {
+      grid-column: 1 / -1;
+      grid-row: 1;
+      font-weight: 700;
+      font-size: 16px;
+      color: #0f172a;
+      padding-right: 110px;  /* 給金額留位 */
+    }
+    /* (2) 機關 — 第 2 行 col 1 (固定寬讓所有人職稱對齊) */
+    .data-table td:nth-child(2) {
+      grid-column: 1;
+      grid-row: 2;
+      font-size: 13px;
+      color: #475569;
+    }
+    /* (3) 職稱 — 第 2 行 col 2 (起始 X 對齊) */
+    .data-table td:nth-child(3) {
+      grid-column: 2;
+      grid-row: 2;
+      font-size: 13px;
+      color: #475569;
+    }
+    /* (4) 申報次數 — 第 2 行 col 3 (靠右) */
+    .data-table td:nth-child(4) {
+      grid-column: 3;
+      grid-row: 2;
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: right !important;
+      white-space: nowrap;
+    }
+    .data-table td:nth-child(4)::after { content: ' 次'; }
+    /* (5) 金額：絕對定位右上角 (不參與 grid) */
+    .data-table td:nth-child(5) {
+      position: absolute;
+      top: 14px;
+      right: 4px;
+      font-weight: 700;
+      font-size: 15px;
+      color: #0f172a;
+      white-space: nowrap;
+      grid-column: unset;
+      grid-row: unset;
+    }
+    /* 「載入更多」按鈕區也不需要 overflow-x */
+    .overflow-x-auto { overflow-x: visible; }
+  }
+
+  /* 篩選下拉（參考政治獻金網站樣式）*/
+  .filter-select {
+    width: 100%;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 9px 32px 9px 12px;
+    font-size: 13px;
+    color: #0f172a;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.15s ease;
+  }
+  .filter-select:focus {
+    outline: none;
+    border-color: #2563eb;
+  }
+  .filter-select::placeholder { color: #94a3b8; }
+  /* input[list] 也套用同樣樣式 */
+  input.filter-select { padding-right: 12px; background-image: none; }
+  input.filter-select:focus { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
+
+  /* 分頁 */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding-top: 14px;
+    flex-wrap: wrap;
+  }
+  .pagination:empty { display: none; }
+  .pagination button {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 11px;
+    font-size: 13px;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 36px;
+  }
+  .pagination button:hover:not(:disabled):not(.active) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  .pagination button.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+    font-weight: 600;
+  }
+  .pagination button:disabled {
+    color: #cbd5e1;
+    cursor: not-allowed;
+  }
+  .pagination .ellipsis {
+    color: #94a3b8;
+    padding: 0 4px;
+    font-size: 13px;
+  }
+  .pagination .info {
+    margin-left: 8px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+
+  /* Data table */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .data-table thead tr {
+    background-color: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .data-table th {
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .data-table td {
+    padding: 14px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #1e293b;
+  }
+  .data-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .data-table tbody tr:hover {
+    background-color: #f1f5f9;
+  }
+  .data-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .amount {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  /* Suggestions dropdown */
+  #suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-top: 6px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.10);
+    z-index: 50;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  #suggestions a {
+    display: block;
+    padding: 10px 16px;
+    color: #1e293b;
+    font-size: 14px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.1s ease;
+  }
+  #suggestions a:hover { background-color: #f8fafc; }
+  #suggestions a:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<main class="max-w-md md:max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
+
+  <!-- Hero 標題 (桌機限制寬度避免文字過散) -->
+  <div class="mb-6 md:max-w-2xl">
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">廉政透明平台</h1>
+    <p class="text-sm text-slate-500 mt-1">公職人員財產申報資料視覺化</p>
+  </div>
+
+  <!-- 搜尋 + 進階篩選按鈕 (桌機限制寬度避免輸入框過長) -->
+  <div class="mb-5 flex gap-2 md:max-w-2xl">
+    <div class="flex-1 relative">
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="輸入姓名搜尋（如：蔣萬安、賴清德）"
+        class="w-full bg-white shadow-soft rounded-2xl py-4 pl-12 pr-4 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+        autocomplete="off"
+      >
+      <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/>
+      </svg>
+      <div id="suggestions" class="hidden"></div>
+    </div>
+    <button id="mobileFilterBtn" onclick="openFilterSheet()"
+            class="relative bg-indigo-600 text-white shadow-card rounded-2xl px-4 flex items-center justify-center shrink-0 active:scale-95 transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18M7 12h10M11 18h2"/>
+      </svg>
+      <span id="mobileFilterCount" class="absolute -top-1 -right-1 hidden bg-rose-500 text-white text-[10px] rounded-full min-w-[18px] h-[18px] px-1 items-center justify-center font-bold">0</span>
+    </button>
+  </div>
+
+  <!-- 機關類別 quick chips -->
+  <div class="mb-4 -mx-4 px-4 flex gap-2 overflow-x-auto" style="scrollbar-width:none">
+    <button onclick="setOrgTypeFilter('')" data-type="" class="org-chip is-active shrink-0 px-4 py-2 rounded-full text-sm font-medium">全部</button>
+    <button onclick="setOrgTypeFilter('中央機關')" data-type="中央機關" class="org-chip shrink-0 px-4 py-2 rounded-full text-sm font-medium">中央機關</button>
+    <button onclick="setOrgTypeFilter('地方機關')" data-type="地方機關" class="org-chip shrink-0 px-4 py-2 rounded-full text-sm font-medium">地方機關</button>
+    <button onclick="setOrgTypeFilter('民意代表')" data-type="民意代表" class="org-chip shrink-0 px-4 py-2 rounded-full text-sm font-medium">民意代表</button>
+    <button onclick="setOrgTypeFilter('公營事業')" data-type="公營事業" class="org-chip shrink-0 px-4 py-2 rounded-full text-sm font-medium">公營事業</button>
+  </div>
+
+  <!-- 隱藏：保留 ID 給 sheet/applyFilters 用 (input 比 select 可自由設任意 value) -->
+  <input id="orgTypeFilter" type="hidden" value="">
+  <input id="orgFilter" type="hidden" value="">
+  <datalist id="orgList"></datalist>
+  <input id="titleFilter" type="hidden" value="">
+
+  <!-- 列表計數 -->
+  <div class="text-xs text-slate-500 mb-3 px-1" id="listCount">載入中...</div>
+
+  <!-- 列表卡片 (手機單欄 / 平板雙欄 / 桌機三欄) -->
+  <div id="listBody" class="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4">
+    <div class="text-center py-8 text-slate-400 md:col-span-full">載入中...</div>
+  </div>
+
+  <!-- 分頁 -->
+  <div id="listPagination" class="pagination mt-6"></div>
+
+</main>
+
+<!-- ── 手機版 Bottom Sheet ── -->
+<div id="filter-sheet-overlay" onclick="closeFilterSheet()"></div>
+<div id="filter-sheet" role="dialog" aria-modal="true">
+  <div id="filter-sheet-handle"></div>
+  <div id="filter-sheet-header">
+    <h3>篩選條件</h3>
+    <button id="filter-sheet-close" onclick="closeFilterSheet()">✕</button>
+  </div>
+  <div id="filter-sheet-body">
+    <div>
+      <label>機關類別</label>
+      <select id="sheetOrgTypeFilter" class="filter-select">
+        <option value="">所有類別</option>
+        <option value="中央機關">中央機關</option>
+        <option value="地方機關">地方機關</option>
+        <option value="民意代表">民意代表</option>
+        <option value="公營事業">公營事業</option>
+      </select>
+    </div>
+    <div>
+      <label>服務機關</label>
+      <select id="sheetOrgFilter" class="filter-select">
+        <option value="">所有機關</option>
+      </select>
+    </div>
+    <div>
+      <label>職稱</label>
+      <select id="sheetTitleFilter" class="filter-select">
+        <option value="">所有職稱</option>
+      </select>
+    </div>
+  </div>
+  <div id="filter-sheet-footer">
+    <button id="filter-reset-btn" onclick="resetSheetFilters()">清除篩選</button>
+    <button id="filter-apply-btn" onclick="applySheetFilters()">套用篩選</button>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="border-t border-slate-200 mt-12 py-8 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 text-xs text-slate-500 leading-relaxed">
+    <span class="font-semibold text-slate-700">廉政透明平台</span> ·
+    資料來源：監察院<br>
+    （由系統自動爬梳建檔，如有錯誤再請協助告知）
+  </div>
+</footer>
+
+<script>
+  // ── 靜態 JSON 載入 ──
+  const DATA_URL = 'data/politicians.json';
+
+  let allPoliticians = [];           // 全部 (原始順序)
+  let filteredPoliticians = [];      // 經過篩選的
+  let currentPage = 1;
+  const PAGE_SIZE = 10;
+
+  function formatCurrency(num) {
+    if (num === null || num === undefined || num === 0) return '—';
+    const sign = num < 0 ? '-' : '';
+    num = Math.floor(Math.abs(num));
+    // ≥ 1 億 → X.XX 億（≥ 100 億用整數）
+    if (num >= 1e8) {
+      const yi = num / 1e8;
+      return sign + (yi >= 100 ? Math.round(yi).toLocaleString() + ' 億' : yi.toFixed(2) + ' 億');
+    }
+    // ≥ 1 萬 → XXX 萬
+    if (num >= 1e4) {
+      return sign + Math.floor(num / 1e4).toLocaleString() + ' 萬';
+    }
+    return sign + num.toLocaleString();
+  }
+
+  // 細分類別：原始有 中央/地方/公營/其他，這裡再切出「民意代表」(議員/立委)
+  // 注意：「代表」單字會誤抓外交部「駐XX代表/常任代表/大使」等職務，故不放入正則
+  function getOrgCategory(p) {
+    const title = p.latest_title || '';
+    const org = p.latest_organization || '';
+    if (/議員|議長|副議長|立法委員|民意代表/.test(title)) return '民意代表';
+    // 立法院全體 (院長/副院長/秘書長) 也算民意代表的一環
+    if (/^立法院/.test(org)) return '民意代表';
+    return p.latest_org_type || '其他';
+  }
+  // 取代原本直接讀 latest_org_type
+  function matchOrgType(p, t) {
+    if (!t) return true;
+    return getOrgCategory(p) === t;
+  }
+
+  // 分離數字 + 單位 (for hero/卡片強調用)
+  function formatCurrencyParts(num) {
+    if (num === null || num === undefined || num === 0) return { num: '—', unit: '' };
+    const sign = num < 0 ? '-' : '';
+    num = Math.floor(Math.abs(num));
+    if (num >= 1e8) {
+      const yi = num / 1e8;
+      return { num: sign + (yi >= 100 ? Math.round(yi).toLocaleString() : yi.toFixed(2)), unit: '億' };
+    }
+    if (num >= 1e4) {
+      return { num: sign + Math.floor(num / 1e4).toLocaleString(), unit: '萬' };
+    }
+    return { num: sign + num.toLocaleString(), unit: '' };
+  }
+
+  // Quick chip filter (機關類別 5 色)
+  function setOrgTypeFilter(t) {
+    document.getElementById('orgTypeFilter').value = t || '';
+    document.querySelectorAll('.org-chip').forEach(b => {
+      b.classList.toggle('is-active', (b.dataset.type || '') === (t || ''));
+    });
+    // 按「全部」(t='') 時，連同搜尋、機關、職稱、含配偶 toggle 一併重置
+    if (!t) {
+      const searchEl = document.getElementById('searchInput');
+      if (searchEl) searchEl.value = '';
+      ['orgFilter', 'titleFilter', 'sheetOrgFilter', 'sheetTitleFilter', 'sheetOrgTypeFilter']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      try { sessionStorage.removeItem('listState'); } catch (e) {}
+    } else {
+      // 切到特定類別時清掉同層的機關/職稱（避免殘留舊機關 filter 造成 0 結果）
+      ['orgFilter', 'titleFilter', 'sheetOrgFilter', 'sheetTitleFilter']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      // sheet 上的「機關類別」select 同步
+      const sheetType = document.getElementById('sheetOrgTypeFilter');
+      if (sheetType) sheetType.value = t;
+    }
+    // 重建職稱/機關下拉並應用篩選
+    rebuildOrgOptions(t || null);
+    rebuildTitleOptions(t || null, null);
+    rebuildSheetOrgOptions(t || null);
+    rebuildSheetTitleOptions(t || null, null);
+    applyFilters();
+  }
+
+  async function loadPoliticians() {
+    try {
+      const t0 = performance.now();
+      const response = await fetch(DATA_URL);
+      const data = await response.json();
+      allPoliticians = data.politicians || [];
+      const ms = Math.round(performance.now() - t0);
+      console.log(`Loaded ${allPoliticians.length} politicians in ${ms}ms`);
+
+      // 預設按淨資產由多到少排序
+      allPoliticians.sort((a, b) => (b.net_assets || 0) - (a.net_assets || 0));
+
+      // 建立篩選用的下拉資料
+      buildFilterOptions();
+
+      // 還原上次離開時的列表狀態 (分頁 + 篩選 + scroll)
+      let restored = false;
+      try {
+        const saved = sessionStorage.getItem('listState');
+        if (saved) {
+          const s = JSON.parse(saved);
+          // 1) restore 各欄位值
+          document.getElementById('searchInput').value = s.searchQuery || '';
+          document.getElementById('orgTypeFilter').value = s.orgType || '';
+          // 同步上方 chip 視覺狀態
+          document.querySelectorAll('.org-chip').forEach(b => {
+            b.classList.toggle('is-active', (b.dataset.type || '') === (s.orgType || ''));
+          });
+          // orgType 變了要重建 org/title 選項才能正確設值
+          if (s.orgType) {
+            rebuildOrgOptions(s.orgType);
+            rebuildTitleOptions(s.orgType, s.org || null);
+          }
+          document.getElementById('orgFilter').value = s.org || '';
+          document.getElementById('titleFilter').value = s.title || '';
+          // 手機 sheet 同步
+          if (document.getElementById('sheetOrgTypeFilter')) {
+            document.getElementById('sheetOrgTypeFilter').value = s.orgType || '';
+            if (s.orgType) {
+              rebuildSheetOrgOptions(s.orgType);
+              rebuildSheetTitleOptions(s.orgType, s.org || null);
+            }
+            document.getElementById('sheetOrgFilter').value = s.org || '';
+            document.getElementById('sheetTitleFilter').value = s.title || '';
+          }
+          // 2) 套用篩選 (會 reset currentPage=1)
+          applyFilters();
+          // 3) 強制還原原本停留的頁
+          if (s.page && s.page > 1) {
+            currentPage = s.page;
+            renderPage();
+          }
+          // 4) 還原 scroll 位置
+          if (s.scrollY) {
+            requestAnimationFrame(() => window.scrollTo(0, s.scrollY));
+          }
+          restored = true;
+        }
+      } catch (e) { console.warn('restore listState failed:', e); }
+      if (!restored) applyFilters();
+    } catch (error) {
+      console.error('Error loading:', error);
+      document.getElementById('listCount').textContent = '資料載入失敗';
+    }
+  }
+
+  // ── 機關合併：把下屬局處/委員會合併到母機關 (避免一個篩選只 1 個人)
+  //    例：「臺北市政府工務局」「臺北市政府捷運工程局」→ 都合併成「臺北市政府」
+  const CONSOLIDATE_PARENTS = [
+    // 6 都 + 縣市政府 (用 regex 動態匹配，這裡 placeholder)
+    // 5 院 + 總統府
+    '立法院', '監察院', '司法院', '考試院', '行政院', '總統府',
+    // 部會 (中央二級機關)
+    '內政部', '外交部', '國防部', '財政部', '教育部', '法務部',
+    '經濟部', '交通部', '勞動部', '文化部', '衛生福利部', '環境部',
+    '數位發展部', '農業部',
+    '僑務委員會', '海洋委員會', '原住民族委員會', '客家委員會',
+    '國軍退除役官兵輔導委員會', '中央選舉委員會', '公平交易委員會',
+    '國家通訊傳播委員會', '金融監督管理委員會', '大陸委員會',
+    '消費者保護委員會', '國家科學及技術委員會',
+    '行政院主計總處', '行政院人事行政總處',
+    // 公營/獨立機關
+    '中央銀行', '中央研究院', '國家發展委員會',
+  ];
+  // 排序：長 prefix 先試 (避免「行政院主計總處XX」被誤判成「行政院」)
+  const _CONSOLIDATE_PARENTS_SORTED = [...CONSOLIDATE_PARENTS].sort((a, b) => b.length - a.length);
+
+  // 額外併入地方政府的單位 (不在 "XX市政府..." 命名規則內的)
+  const EXTRA_PARENT_MAP = {
+    // 地方公營事業 / 隸屬市政府的附屬機關
+    '新北市果菜運銷股份有限公司': '新北市政府',
+    '新北大眾捷運股份有限公司':   '新北市政府',
+    '臺北大眾捷運股份有限公司':   '臺北市政府',
+    '台北大眾捷運股份有限公司':   '臺北市政府',
+    '桃園大眾捷運股份有限公司':   '桃園市政府',
+    '臺北自來水事業處':           '臺北市政府',
+    '台北自來水事業處':           '臺北市政府',
+    // 基隆 / 新竹 / 嘉義 / 縣 — 沒有 "政府" 在名字內的局處
+    '基隆市文化觀光局':           '基隆市政府',
+    '基隆市環境保護局':           '基隆市政府',
+    '新竹市衛生局':               '新竹市政府',
+    '新竹市文化局':               '新竹市政府',
+    '雲林縣肉品市場股份有限公司': '雲林縣政府',
+    '花蓮縣衛生局':               '花蓮縣政府',
+    '花蓮縣文化局':               '花蓮縣政府',
+    '臺東縣衛生局':               '臺東縣政府',
+    '台東縣衛生局':               '臺東縣政府',
+    '臺東縣環境保護局':           '臺東縣政府',
+    '台東縣環境保護局':           '臺東縣政府',
+    '臺東縣農產股份有限公司':     '臺東縣政府',
+    '台東縣農產股份有限公司':     '臺東縣政府',
+    '金門縣衛生局':               '金門縣政府',
+    '連江縣財政稅務局':           '連江縣政府',
+    '連江縣交通旅遊局':           '連江縣政府',
+    // 翡翠水庫管理局是臺北市政府下屬，沒有「市」字觸發不到通則
+    '臺北翡翠水庫管理局':         '臺北市政府',
+    '台北翡翠水庫管理局':         '臺北市政府',
+
+    // ── 中央機關 7 大頂層合併 ─────────────────────────────────
+    // 總統府: 國安會/國安局/國史館/中研院
+    '國家安全會議':               '總統府',
+    '國家安全局':                 '總統府',
+    '國史館':                     '總統府',
+    '中央研究院':                 '總統府',
+    // 行政院: 14 部 + 院本部 + 院級委員會 + 央行 + 故宮 (排除獨立機關)
+    '內政部':                     '行政院',
+    '內政部空中勤務總隊':         '行政院',
+    '外交部':                     '行政院',
+    '台灣美國事務委員會':         '行政院',
+    '國防部':                     '行政院',
+    '財政部':                     '行政院',
+    '財政部印刷廠':               '行政院',
+    '教育部':                     '行政院',
+    '法務部':                     '行政院',
+    '經濟部':                     '行政院',
+    '交通部':                     '行政院',
+    '交通部觀光署':               '行政院',
+    '勞動部':                     '行政院',
+    '衛生福利部':                 '行政院',
+    '文化部':                     '行政院',
+    '農業部':                     '行政院',
+    '環境部':                     '行政院',
+    '數位發展部':                 '行政院',
+    '運動部':                     '行政院',
+    '國軍退除役官兵輔導委員會':   '行政院',
+    '國家科學及技術委員會':       '行政院',
+    '國家發展委員會':             '行政院',
+    '大陸委員會':                 '行政院',
+    '金融監督管理委員會':         '行政院',
+    '海洋委員會':                 '行政院',
+    '海洋委員會海洋保育署':       '行政院',
+    '僑務委員會':                 '行政院',
+    '客家委員會':                 '行政院',
+    '原住民族委員會':             '行政院',
+    '核能安全委員會':             '行政院',
+    '國家運輸安全調查委員會':     '行政院',
+    '行政院人事行政總處':         '行政院',
+    '行政院主計總處':             '行政院',
+    '行政院公共工程委員會':       '行政院',
+    '中央銀行':                   '行政院',
+    '中央存款保險股份有限公司':   '行政院',
+    '國立故宮博物院':             '行政院',
+    // 司法院
+    '最高法院':                   '司法院',
+    '最高行政法院':               '司法院',
+    '最高檢察署':                 '司法院',
+    '懲戒法院':                   '司法院',
+    '公務員懲戒委員會':           '司法院',
+    // 考試院
+    '考選部':                     '考試院',
+    '銓敘部':                     '考試院',
+    '公務人員保障暨培訓委員會':   '考試院',
+    // 監察院
+    '審計部':                     '監察院',
+    // 獨立機關 (虛擬頂層 — 不放在任何院底下)
+    '中央選舉委員會':             '獨立機關',
+    '公平交易委員會':             '獨立機關',
+    '國家通訊傳播委員會':         '獨立機關',
+    '不當黨產處理委員會':         '獨立機關',
+  };
+
+  // 機關名顯示用換行：「臺北市政府產業發展局」→「臺北市政府<br>產業發展局」
+  function formatOrgDisplay(name) {
+    if (!name) return '—';
+    // 在 政府/院/委員會/部/署/府/處 後面如果還有字 → 插入換行
+    return name.replace(
+      /^(.+?(?:市政府|縣政府|院|委員會|部|署|府|總處|處))(.+)$/,
+      '$1<br>$2'
+    );
+  }
+
+  function consolidateOrg(org) {
+    if (!org) return org;
+    let s = String(org).trim();
+    if (!s) return s;
+    // 0) 顯式對照表 (地方公營事業 / 局處 / 部會→五院)
+    if (EXTRA_PARENT_MAP[s]) return EXTRA_PARENT_MAP[s];
+    // 1) 縣市政府：「XX市政府/XX縣政府」+ 任何後綴 → 「XX市政府」
+    const m = s.match(/^(.+?(?:市|縣)政府)(?:.+)$/);
+    if (m) return m[1];
+    // 2) 院/府/部會 prefix → 滾到中層 (e.g. 內政部警政署 → 內政部)
+    for (const parent of _CONSOLIDATE_PARENTS_SORTED) {
+      if (s.startsWith(parent) && s !== parent) {
+        s = parent;
+        break;
+      }
+    }
+    // 3) 再套一次 EXTRA_PARENT_MAP (中層 → 頂層，e.g. 內政部 → 行政院)
+    if (EXTRA_PARENT_MAP[s]) return EXTRA_PARENT_MAP[s];
+    return s;
+  }
+
+  // ── 直覺排序：機關按政府層級 / 縣市順序分組 ──
+  // 回傳 [大類序, 次類序, 三類序]，按 lexicographic 比較
+  // 大類：0=中央 / 1=地方 / 2=公營 / 3=其他
+  // 中央次類（按 5 院層級）：
+  //   0=總統府 / 1=行政院+部會 / 2=立法院 / 3=司法 / 4=考試 / 5=監察 / 6=其他國家
+  // 地方次類：縣市順序（六都→省轄市→縣）
+  // 地方三類：0=政府/局處 / 1=議會 / 2=代表會
+  const CITY_ORDER = {
+    '臺北市': 1, '台北市': 1,
+    '新北市': 2, '臺北縣': 2, '台北縣': 2,
+    '桃園市': 3, '桃園縣': 3,
+    '臺中市': 4, '台中市': 4, '臺中縣': 4, '台中縣': 4,
+    '臺南市': 5, '台南市': 5, '臺南縣': 5, '台南縣': 5,
+    '高雄市': 6, '高雄縣': 6,
+    '基隆市': 7,
+    '新竹市': 8,
+    '新竹縣': 9,
+    '嘉義市': 10,
+    '苗栗縣': 11,
+    '彰化縣': 12,
+    '南投縣': 13,
+    '雲林縣': 14,
+    '嘉義縣': 15,
+    '屏東縣': 16,
+    '宜蘭縣': 17,
+    '花蓮縣': 18,
+    '臺東縣': 19, '台東縣': 19,
+    '澎湖縣': 20,
+    '金門縣': 21,
+    '連江縣': 22,
+  };
+
+  function categorizeOrg(name) {
+    if (!name) return [99, 0, 0];
+
+    // 1) 地方：縣市開頭判斷
+    for (const prefix in CITY_ORDER) {
+      if (name.startsWith(prefix)) {
+        let third = 0; // 0 = 行政機關（政府、局處）
+        if (name.includes('議會')) third = 1;        // 民意
+        else if (name.includes('代表會')) third = 2; // 代表會
+        return [1, CITY_ORDER[prefix], third];
+      }
+    }
+    // 鄉鎮市公所無縣市前綴（少見）→ 放最後
+    if (/(鄉公所|鎮公所|區公所|市公所)$/.test(name)) return [1, 99, 0];
+    if (/代表會$/.test(name)) return [1, 99, 2];
+
+    // 2) 中央：按 5 院層級
+    // 0 = 總統府
+    if (/^(總統府|副總統府|國家安全會議|國家安全局)/.test(name)) return [0, 0, 0];
+    // 1 = 行政院本院
+    if (/^行政院$/.test(name)) return [0, 1, 0];
+    // 1 = 行政院附屬（行政院 XX 委員會、各部會）
+    if (/^行政院/.test(name)) return [0, 1, 1];
+    // 1 = 部會本院（內政部、外交部...）
+    if (/(內政部|外交部|國防部|財政部|教育部|法務部|經濟部|交通部|勞動部|衛生福利部|衛福部|文化部|農業部|環境部|數位發展部)$/.test(name)) return [0, 1, 2];
+    if (/(內政部|外交部|國防部|財政部|教育部|法務部|經濟部|交通部|勞動部|衛生福利部|衛福部|文化部|農業部|環境部|數位發展部)/.test(name)) return [0, 1, 3];
+    // 1 = 中央委員會（金管會、僑委會等）
+    if (/委員會$/.test(name)) return [0, 1, 4];
+    // 1 = 短名部/署（其他）
+    if (/^.{1,5}(部|署)$/.test(name) && !/(支部|分署)/.test(name)) return [0, 1, 5];
+    // 2 = 立法院（接在行政後）
+    if (/^立法院/.test(name)) return [0, 2, 0];
+    // 3 = 司法院
+    if (/^司法院/.test(name)) return [0, 3, 0];
+    if (/(法院|檢察署|地檢署)$/.test(name)) return [0, 3, 1];
+    // 4 = 考試院
+    if (/^考試院/.test(name)) return [0, 4, 0];
+    if (/^(考選部|銓敘部|公務人員保障|公務人員退休)/.test(name)) return [0, 4, 1];
+    // 5 = 監察院
+    if (/^監察院/.test(name)) return [0, 5, 0];
+    if (/^審計部/.test(name)) return [0, 5, 1];
+    // 6 = 中央 / 國立 / 國家 機構
+    if (/^(中央|國立|國家)/.test(name)) return [0, 6, 0];
+
+    // 3) 公營事業
+    if (/(股份有限公司|有限公司|公司)/.test(name)) return [2, 0, 0];
+    if (/銀行$/.test(name)) return [2, 0, 1];
+    if (/^(台灣|臺灣|中華|台|中)/.test(name)) return [2, 0, 2];
+
+    // 4) 其他
+    return [3, 0, 0];
+  }
+
+  // ── 直覺排序：職稱按官階高低 ──
+  function categorizeTitle(name) {
+    if (!name) return 99;
+    if (/^(總統|副總統)$/.test(name)) return 0;
+    if (name === '行政院長' || name === '院長' || /^.+院長$/.test(name)) {
+      if (/^副/.test(name)) return 3;
+      return 1;
+    }
+    if (name === '部長' || /^.+部長$/.test(name)) {
+      if (/^副/.test(name)) return 3;
+      return 2;
+    }
+    if (/(主任委員|政務委員|秘書長)$/.test(name)) {
+      if (/^副/.test(name)) return 3;
+      return 2;
+    }
+    if (/(次長|副秘書長)$/.test(name)) return 3;
+    if (name === '立法委員') return 4;
+    if (/(監察委員|考試委員|大法官)$/.test(name)) return 5;
+    if (/^(市長|縣長|直轄市長)$/.test(name)) return 6;
+    if (/^副(市長|縣長)$/.test(name)) return 7;
+    if (name === '議長') return 8;
+    if (name === '副議長') return 9;
+    if (name === '議員') return 10;
+    if (/^(鎮長|鄉長|區長)$/.test(name)) return 11;
+    if (/(局長|處長|司長|科長)$/.test(name)) return 12;
+    if (/(主席|代表)$/.test(name)) return 13;
+    return 20;
+  }
+
+  function sortOrgs(orgs, orgCount) {
+    return orgs.sort((a, b) => {
+      const ka = categorizeOrg(a);
+      const kb = categorizeOrg(b);
+      for (let i = 0; i < 3; i++) {
+        if (ka[i] !== kb[i]) return ka[i] - kb[i];
+      }
+      return orgCount[b] - orgCount[a];
+    });
+  }
+  function sortTitles(titles, titleCount) {
+    return titles.sort((a, b) => {
+      const ca = categorizeTitle(a);
+      const cb = categorizeTitle(b);
+      if (ca !== cb) return ca - cb;
+      return titleCount[b] - titleCount[a];
+    });
+  }
+
+  function buildFilterOptions() {
+    // 初始：類別未選 → 所有機關/職稱
+    rebuildOrgOptions(null);
+    rebuildTitleOptions(null, null);
+    rebuildSheetOrgOptions(null);
+    rebuildSheetTitleOptions(null, null);
+  }
+
+  // 取得（依條件過濾後）的 org -> count (按合併後母機關計)
+  function getOrgsForType(orgType) {
+    const orgCount = {};
+    for (const p of allPoliticians) {
+      if (orgType && getOrgCategory(p) !== orgType) continue;
+      const parent = consolidateOrg(p.latest_organization);
+      if (parent) orgCount[parent] = (orgCount[parent] || 0) + 1;
+    }
+    return { sortedOrgs: sortOrgs(Object.keys(orgCount), orgCount), orgCount };
+  }
+  // 取得（依條件過濾後）的 title -> count
+  function getTitlesFor(orgType, org) {
+    const titleCount = {};
+    for (const p of allPoliticians) {
+      if (orgType && getOrgCategory(p) !== orgType) continue;
+      if (org && consolidateOrg(p.latest_organization) !== org) continue;
+      if (p.latest_title) titleCount[p.latest_title] = (titleCount[p.latest_title] || 0) + 1;
+    }
+    return { sortedTitles: sortTitles(Object.keys(titleCount), titleCount), titleCount };
+  }
+
+  // ── 桌面：重建 機關 / 職稱 選項 ──
+  function rebuildOrgOptions(orgType) {
+    const { sortedOrgs } = getOrgsForType(orgType);
+    document.getElementById('orgList').innerHTML =
+      sortedOrgs.map(o => `<option value="${o}">`).join('');
+    // 若當前機關不在新範圍 → 清空
+    const orgInput = document.getElementById('orgFilter');
+    if (orgInput.value && !sortedOrgs.includes(orgInput.value)) {
+      orgInput.value = '';
+    }
+  }
+  function rebuildTitleOptions(orgType, org) {
+    const { sortedTitles, titleCount } = getTitlesFor(orgType, org);
+    const select = document.getElementById('titleFilter');
+    const current = select.value;
+    select.innerHTML = '<option value="">所有職稱</option>' +
+      sortedTitles.map(t => `<option value="${t}">${t} (${titleCount[t]})</option>`).join('');
+    if (current && sortedTitles.includes(current)) select.value = current;
+    else if (current) select.value = '';
+  }
+
+  // ── 手機 sheet：重建 機關 / 職稱 選項 ──
+  function rebuildSheetOrgOptions(orgType) {
+    const { sortedOrgs, orgCount } = getOrgsForType(orgType);
+    const select = document.getElementById('sheetOrgFilter');
+    const current = select.value;
+    select.innerHTML = '<option value="">所有機關</option>' +
+      sortedOrgs.map(o => `<option value="${o}">${o} (${orgCount[o]})</option>`).join('');
+    if (current && sortedOrgs.includes(current)) select.value = current;
+    else if (current) select.value = '';
+  }
+  function rebuildSheetTitleOptions(orgType, org) {
+    const { sortedTitles, titleCount } = getTitlesFor(orgType, org);
+    const select = document.getElementById('sheetTitleFilter');
+    const current = select.value;
+    select.innerHTML = '<option value="">所有職稱</option>' +
+      sortedTitles.map(t => `<option value="${t}">${t} (${titleCount[t]})</option>`).join('');
+    if (current && sortedTitles.includes(current)) select.value = current;
+    else if (current) select.value = '';
+  }
+
+  // ── Bottom Sheet 控制 ──
+  function openFilterSheet() {
+    // 把當前桌面篩選值同步到 sheet（含類別 cascade）
+    const orgType = document.getElementById('orgTypeFilter').value;
+    document.getElementById('sheetOrgTypeFilter').value = orgType;
+    rebuildSheetOrgOptions(orgType || null);
+    document.getElementById('sheetOrgFilter').value = document.getElementById('orgFilter').value;
+    const org = document.getElementById('sheetOrgFilter').value;
+    rebuildSheetTitleOptions(orgType || null, org || null);
+    document.getElementById('sheetTitleFilter').value = document.getElementById('titleFilter').value;
+    document.getElementById('filter-sheet-overlay').style.display = 'block';
+    requestAnimationFrame(() => {
+      document.getElementById('filter-sheet-overlay').classList.add('visible');
+      document.getElementById('filter-sheet').classList.add('open');
+    });
+    document.body.style.overflow = 'hidden';
+  }
+  function closeFilterSheet() {
+    document.getElementById('filter-sheet-overlay').classList.remove('visible');
+    document.getElementById('filter-sheet').classList.remove('open');
+    setTimeout(() => {
+      document.getElementById('filter-sheet-overlay').style.display = 'none';
+    }, 300);
+    document.body.style.overflow = '';
+  }
+  function applySheetFilters() {
+    const orgTypeVal = document.getElementById('sheetOrgTypeFilter').value;
+    const orgVal = document.getElementById('sheetOrgFilter').value;
+    document.getElementById('orgTypeFilter').value = orgTypeVal;
+    rebuildOrgOptions(orgTypeVal || null);
+    document.getElementById('orgFilter').value = orgVal;
+    rebuildTitleOptions(orgTypeVal || null, orgVal || null);
+    document.getElementById('titleFilter').value = document.getElementById('sheetTitleFilter').value;
+    // 同步 chip active 狀態
+    document.querySelectorAll('.org-chip').forEach(b => {
+      const active = (b.dataset.type === orgTypeVal);
+      b.classList.toggle('is-active', active);
+      if (active) { b.classList.remove('bg-white','shadow-soft'); }
+      else { b.classList.add('bg-white','shadow-soft'); }
+    });
+    closeFilterSheet();
+    applyFilters();
+  }
+  function resetSheetFilters() {
+    console.log('%c[resetSheetFilters v2] clearing all filters', 'color:#dc2626;font-weight:bold');
+    // 1) 清空 sheet 內三個下拉
+    document.getElementById('sheetOrgTypeFilter').value = '';
+    rebuildSheetOrgOptions(null);
+    rebuildSheetTitleOptions(null, null);
+    document.getElementById('sheetOrgFilter').value = '';
+    document.getElementById('sheetTitleFilter').value = '';
+    // 2) 同步清空桌面欄位
+    document.getElementById('orgTypeFilter').value = '';
+    rebuildOrgOptions(null);
+    rebuildTitleOptions(null, null);
+    document.getElementById('orgFilter').value = '';
+    document.getElementById('titleFilter').value = '';
+    // 3) 也清掉 sessionStorage 儲存的篩選 state（避免下次刷新又 restore 回來）
+    try { sessionStorage.removeItem('listState'); } catch (e) {}
+    // 4) 收回 sheet
+    closeFilterSheet();
+    // 5) chip 也同步回「全部」
+    document.querySelectorAll('.org-chip').forEach(b => {
+      b.classList.toggle('is-active', (b.dataset.type || '') === '');
+    });
+    // 6) 套用 (回第 1 頁 + 更新 badge)
+    applyFilters();
+    // 7) 強制 hide badge (防禦)
+    const badge = document.getElementById('mobileFilterCount');
+    const btn = document.getElementById('mobileFilterBtn');
+    if (badge) { badge.classList.add('hidden'); badge.textContent = '0'; }
+    if (btn) btn.classList.remove('has-filter');
+  }
+  function updateMobileFilterBadge() {
+    const orgTypeF = document.getElementById('orgTypeFilter').value;
+    const orgF = document.getElementById('orgFilter').value;
+    const titleF = document.getElementById('titleFilter').value;
+    const count = (orgTypeF ? 1 : 0) + (orgF ? 1 : 0) + (titleF ? 1 : 0);
+    const btn = document.getElementById('mobileFilterBtn');
+    const badge = document.getElementById('mobileFilterCount');
+    if (count > 0) {
+      btn.classList.add('has-filter');
+      badge.classList.remove('hidden');
+      badge.textContent = count;
+    } else {
+      btn.classList.remove('has-filter');
+      badge.classList.add('hidden');
+    }
+  }
+
+  function applyFilters() {
+    const searchQuery = document.getElementById('searchInput').value.trim();
+    const orgTypeFilter = document.getElementById('orgTypeFilter').value;
+    const orgFilter = document.getElementById('orgFilter').value.trim();
+    const titleFilter = document.getElementById('titleFilter').value;
+
+    filteredPoliticians = allPoliticians.filter(p => {
+      if (searchQuery && !p.name.includes(searchQuery)) return false;
+      if (orgTypeFilter && getOrgCategory(p) !== orgTypeFilter) return false;
+      if (orgFilter && consolidateOrg(p.latest_organization) !== orgFilter) return false;
+      if (titleFilter && p.latest_title !== titleFilter) return false;
+      return true;
+    });
+
+    currentPage = 1;
+    renderPage();
+
+    const total = allPoliticians.length;
+    const filtered = filteredPoliticians.length;
+    if (filtered === total) {
+      document.getElementById('listCount').textContent = `共 ${total.toLocaleString()} 位`;
+    } else {
+      document.getElementById('listCount').textContent = `${filtered.toLocaleString()} / ${total.toLocaleString()} 位`;
+    }
+    updateMobileFilterBadge();
+  }
+
+  function renderPage() {
+    const tbody = document.getElementById('listBody');
+    const pag = document.getElementById('listPagination');
+    const total = filteredPoliticians.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    if (total === 0) {
+      tbody.innerHTML = '<div class="text-center py-12 text-slate-400 bg-white rounded-2xl shadow-soft">沒有符合條件的人</div>';
+      pag.innerHTML = '';
+      return;
+    }
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const visible = filteredPoliticians.slice(start, start + PAGE_SIZE);
+
+    tbody.innerHTML = visible.map(p => {
+      const ctype = getOrgCategory(p);
+      const avCls = ({'中央機關':'av-central','地方機關':'av-local','民意代表':'av-council','公營事業':'av-soe'}[ctype]) || 'av-other';
+      const firstChar = (p.name || '?').replace(/\s|[A-Za-z·．‧・.]/g,'')[0] || '?';
+      const org = p.latest_organization || '';
+      const title = p.latest_title || '';
+      const orgTitle = title ? `${org} · <span class="text-slate-700 font-medium">${title}</span>` : org;
+      const amount = formatCurrencyParts(p.net_assets);
+      return `
+      <a onclick="viewProfile('${p.name.replace(/'/g, "\\'")}')" class="card-rise block bg-white rounded-2xl p-5 shadow-soft cursor-pointer">
+        <div class="flex items-start gap-4">
+          <div class="${avCls} w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0">${firstChar}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="font-semibold text-slate-900 text-[16px] truncate">${p.name}</span>
+              <span class="num font-bold text-indigo-600 text-[18px] shrink-0">${amount.num}<span class="text-xs ml-0.5 text-indigo-400">${amount.unit}</span></span>
+            </div>
+            <div class="mt-2 flex items-center justify-between gap-2">
+              <div class="text-xs text-slate-500 leading-snug min-w-0">${orgTitle || '—'}</div>
+              <span class="pill pill-primary shrink-0">申報 ${p.num_declarations} 次</span>
+            </div>
+          </div>
+        </div>
+      </a>
+    `;}).join('');
+
+    if (totalPages <= 1) {
+      pag.innerHTML = '';
+      return;
+    }
+    const pages = [];
+    const cur = currentPage;
+    pages.push(`<button onclick="goPage(${cur - 1})" ${cur === 1 ? 'disabled' : ''}>‹</button>`);
+    const showPages = new Set([1, totalPages, cur, cur - 1, cur + 1]);
+    let lastP = 0;
+    for (let p = 1; p <= totalPages; p++) {
+      if (!showPages.has(p)) continue;
+      if (lastP && p > lastP + 1) pages.push('<span class="ellipsis">…</span>');
+      pages.push(`<button class="${p === cur ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`);
+      lastP = p;
+    }
+    pages.push(`<button onclick="goPage(${cur + 1})" ${cur === totalPages ? 'disabled' : ''}>›</button>`);
+    pages.push(`<span class="info">${start + 1}-${Math.min(start + PAGE_SIZE, total)} / ${total}</span>`);
+    pag.innerHTML = pages.join('');
+  }
+
+  function goPage(p) {
+    currentPage = p;
+    renderPage();
+    document.querySelector('.card .data-table').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function viewProfile(name) {
+    // 跳轉前儲存當前列表狀態（分頁 + 篩選），返回時還原
+    try {
+      sessionStorage.setItem('listState', JSON.stringify({
+        page: currentPage,
+        searchQuery: document.getElementById('searchInput').value || '',
+        orgType: document.getElementById('orgTypeFilter').value || '',
+        org: document.getElementById('orgFilter').value || '',
+        title: document.getElementById('titleFilter').value || '',
+        scrollY: window.scrollY,
+      }));
+    } catch (e) {}
+    window.location.href = `profile-page.html?name=${encodeURIComponent(name)}`;
+  }
+
+  // ── 互動 ──
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    const suggestions = document.getElementById('suggestions');
+
+    // 即時更新列表
+    applyFilters();
+
+    // 顯示 suggestion
+    if (query.length === 0) {
+      suggestions.classList.add('hidden');
+      return;
+    }
+    const matched = allPoliticians
+      .filter(p => p.name.includes(query))
+      .slice(0, 10);
+    if (matched.length > 0) {
+      suggestions.innerHTML = matched.map(p =>
+        `<a href="profile-page.html?name=${encodeURIComponent(p.name)}">
+          <span class="font-medium">${p.name}</span>
+          <span class="text-slate-500 text-xs ml-2">${p.latest_organization || ''} ${p.latest_title || ''}</span>
+        </a>`
+      ).join('');
+      suggestions.classList.remove('hidden');
+    } else {
+      suggestions.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('searchInput').addEventListener('blur', () => {
+    setTimeout(() => document.getElementById('suggestions').classList.add('hidden'), 200);
+  });
+
+  // 桌面：類別變更 → 重建機關 + 職稱
+  document.getElementById('orgTypeFilter').addEventListener('change', () => {
+    const orgType = document.getElementById('orgTypeFilter').value || null;
+    rebuildOrgOptions(orgType);
+    rebuildTitleOptions(orgType, document.getElementById('orgFilter').value.trim() || null);
+    applyFilters();
+  });
+  // 桌面：機關變更 → 重建職稱
+  document.getElementById('orgFilter').addEventListener('input', () => {
+    const orgType = document.getElementById('orgTypeFilter').value || null;
+    rebuildTitleOptions(orgType, document.getElementById('orgFilter').value.trim() || null);
+    applyFilters();
+  });
+  document.getElementById('titleFilter').addEventListener('change', applyFilters);
+
+  // 手機 sheet：類別變更 → 重建機關 + 職稱
+  document.getElementById('sheetOrgTypeFilter').addEventListener('change', () => {
+    const orgType = document.getElementById('sheetOrgTypeFilter').value || null;
+    rebuildSheetOrgOptions(orgType);
+    rebuildSheetTitleOptions(orgType, document.getElementById('sheetOrgFilter').value || null);
+  });
+  document.getElementById('sheetOrgFilter').addEventListener('change', () => {
+    const orgType = document.getElementById('sheetOrgTypeFilter').value || null;
+    rebuildSheetTitleOptions(orgType, document.getElementById('sheetOrgFilter').value || null);
+  });
+
+  loadPoliticians();
+</script>
+
+</body>
+</html>
