@@ -1839,6 +1839,31 @@
         }
       }
     }
+    // 配對孤立的土地+建物：若 location 含「房地總價額」且 owner/reason/price 相同
+    // 代表同一筆房地同價交易，合併為一張卡片顯示
+    const pairedIdx   = new Set();
+    const extraGroups = [];
+    const isoLands  = groups.map((g, i) => ({ g, i })).filter(({ g }) => g.is_pure_land && g.lands.length === 1 && !g.builds.length);
+    const isoBuilds = groups.map((g, i) => ({ g, i })).filter(({ g }) => !g.is_pure_land && !g.lands.length && g.builds.length === 1);
+    for (const { g: bg, i: bi } of isoBuilds) {
+      if (pairedIdx.has(bi)) continue;
+      const be = bg.builds[0];
+      if (!(be.location || '').includes('房地總價額')) continue;
+      for (const { g: lg, i: li } of isoLands) {
+        if (pairedIdx.has(li)) continue;
+        const le = lg.lands[0];
+        if (!(le.location || '').includes('房地總價額')) continue;
+        if (le.owner === be.owner &&
+            le.acquisition_reason === be.acquisition_reason &&
+            Math.abs((parseFloat(le.price) || 0) - (parseFloat(be.price) || 0)) < 1) {
+          pairedIdx.add(li); pairedIdx.add(bi);
+          extraGroups.push({ section: le.location, category: '', is_pure_land: false, lands: [le], builds: [be] });
+          break;
+        }
+      }
+    }
+    if (pairedIdx.size) return [...groups.filter((_, i) => !pairedIdx.has(i)), ...extraGroups];
+
     return groups;
   }
 
@@ -2012,8 +2037,9 @@
                <div class="text-[10px] text-purple-500 mt-0.5 text-right">(實價估)</div>`
             : '<div class="text-slate-400 text-sm">—</div>');
       let subParts = [];
-      const locMain = (e.location || '').replace(/[（(].*[）)]/, '').trim();
-      const locExtra = (e.location || '').match(/[（(](.+?)[）)]/);
+      const _locStr  = e.location || '';
+      const locMain = _locStr.replace(/^[（(][^）)]+[）)]/, '').replace(/[（(][^（(）)]+[）)]\s*$/, '').trim();
+      const locExtra = _locStr.match(/^[（(](.+?)[）)]/);
       if (locExtra) subParts.push(locExtra[1]);
       if (area > 0) {
         if (shareArea && shareArea !== area && shareArea < area * 0.99) {
@@ -2062,7 +2088,9 @@
       let tagKey = '其他';
       for (const r of validReasons) { if (reason.includes(r)) { tagKey = r; break; } }
 
-      const locMain = (group.section || '').replace(/[（(].*[）)]/,'').trim();
+      const _secStr  = group.section || '';
+      const locMain  = _secStr.replace(/^[（(][^）)]+[）)]/, '').replace(/[（(][^（(）)]+[）)]\s*$/, '').trim();
+      const locExtra = _secStr.match(/^[（(](.+?)[）)]/);
 
       // icon + 顏色依分類
       let iconBg = 'bg-slate-50', iconColor = 'text-slate-500';
@@ -2120,7 +2148,7 @@
           <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0">${icon}</div>
           <div class="min-w-0">
             <div class="text-sm font-medium text-slate-900 leading-snug">${locMain || '—'}</div>
-            <div class="text-xs text-slate-400 mt-0.5 leading-snug">${itemDesc}</div>
+            <div class="text-xs text-slate-400 mt-0.5 leading-snug">${[locExtra && locExtra[1], itemDesc].filter(Boolean).join(' · ')}</div>
             <div class="mt-2 flex flex-wrap gap-1.5">
               ${reason ? `<span class="tag-acq acq-${tagKey}">${reason}</span>` : ''}
               ${valCatBadge}
