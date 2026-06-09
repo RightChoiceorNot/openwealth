@@ -2199,15 +2199,16 @@
       el.innerHTML = '<div class="lb-sf-placeholder">載入中…</div>';
       return;
     }
+    const holderCount = s => new Set((lbSecData[s] || []).map(e => e.politician)).size;
     const stocks = Object.keys(lbSecData)
       .filter(k => lbGetBpmf(k) === lbBpmfFilter)
-      .sort((a, b) => (lbSecData[b] || []).length - (lbSecData[a] || []).length || a.localeCompare(b, 'zh-TW'));
+      .sort((a, b) => holderCount(b) - holderCount(a) || a.localeCompare(b, 'zh-TW'));
     if (stocks.length === 0) {
       el.innerHTML = '<div class="lb-sf-placeholder">此注音無個股資料</div>';
       return;
     }
     el.innerHTML = stocks.map(s => {
-      const count = (lbSecData[s] || []).length;
+      const count = holderCount(s);
       const isSel = s === lbStockName;
       return `<div class="lb-sf-stock-item${isSel ? ' lb-sf-sel' : ''}" onmousedown="lbPickStockFromSF('${s.replace(/'/g, "\\'")}')">
         <span>${s}</span>
