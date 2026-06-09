@@ -63,6 +63,23 @@
   .valcat-town    { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
   .valcat-complex { background:#FAF5FF; color:#6B21A8; border:1px solid #E9D5FF; }
   .valcat-mute    { background:#F8FAFC; color:#94A3B8; border:1px solid #E2E8F0; }
+  /* 不動產篩選 tabs */
+  .re-filter-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 20px 10px; border-bottom: 1px solid #f1f5f9; }
+  .re-filter-tab {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 11px; border-radius: 9999px; font-size: 12px; font-weight: 500;
+    border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b;
+    cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+    white-space: nowrap; line-height: 1.6;
+  }
+  .re-filter-tab:hover { background: #f1f5f9; color: #334155; }
+  .re-filter-tab.active { background: #1e293b; color: #fff; border-color: #1e293b; }
+  .re-filter-n {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; padding: 0 3px; height: 15px; border-radius: 9999px;
+    font-size: 10px; font-weight: 700; background: rgba(0,0,0,0.08); color: inherit;
+  }
+  .re-filter-tab.active .re-filter-n { background: rgba(255,255,255,0.22); }
 
   /* uniform list-item: icon | content | right-col (金額+owner) */
   .item-row {
@@ -1149,6 +1166,7 @@
     <div id="realEstateCountChart" class="hidden">—</div>
     <div id="realEstateLegend" class="hidden"></div>
     <div id="realEstateSummary" class="hidden"></div>
+    <div id="realEstateFilters" class="re-filter-bar" style="display:none"></div>
     <div id="realEstateTable" class="divide-y divide-slate-50"></div>
     <div id="realEstatePagination" class="pagination py-4"></div>
     <div id="realEstateDisclaimer" style="display:none"></div>
@@ -2160,6 +2178,48 @@
     const renderGroup = (g) => g.is_pure_land
       ? renderSingleRow(g.lands[0] || g.builds[0])
       : renderGroupRow(g);
+
+    // ── 篩選 tabs ──────────────────────────────────────────────
+    const filtersEl = document.getElementById('realEstateFilters');
+    const filterDefs = [
+      { key: 'all',       label: '全部' },
+      { key: 'land',      label: '純土地',
+        test: g => g.is_pure_land },
+      { key: 'apt',       label: '區分所有建物',
+        test: g => (g.category || '').includes('區分所有') },
+      { key: 'town',      label: '透天/別墅',
+        test: g => (g.category || '').includes('透天') || (g.category || '').includes('別墅') },
+      { key: 'complex',   label: '複合型',
+        test: g => (g.category || '').includes('複合型') || (g.category || '').includes('購地自建') },
+      { key: 'first_reg', label: '建物首登記',
+        test: g => !g.category && g.builds.some(e => (e.acquisition_reason || '').includes('第一次登記')) },
+    ];
+    const _reCounts = {};
+    for (const fd of filterDefs) {
+      _reCounts[fd.key] = fd.key === 'all' ? reGroups.length : reGroups.filter(fd.test).length;
+    }
+    const visibleFilters = filterDefs.filter(fd => fd.key === 'all' || _reCounts[fd.key] > 0);
+    let _reActiveFilter = 'all';
+    const _renderFilterBar = () => {
+      if (!filtersEl) return;
+      if (visibleFilters.length <= 1) { filtersEl.style.display = 'none'; return; }
+      filtersEl.style.display = '';
+      filtersEl.innerHTML = visibleFilters.map(fd => `
+        <button class="re-filter-tab${_reActiveFilter === fd.key ? ' active' : ''}"
+                onclick="window._reApplyFilter('${fd.key}')">
+          ${fd.label}<span class="re-filter-n">${_reCounts[fd.key]}</span>
+        </button>`).join('');
+    };
+    window._reApplyFilter = (key) => {
+      _reActiveFilter = key;
+      const fd = filterDefs.find(f => f.key === key);
+      const filtered = key === 'all' ? reGroups : reGroups.filter(fd.test);
+      tableState.realEstate = { data: filtered, page: 1, render: renderGroup };
+      renderTablePage('realEstate');
+      _renderFilterBar();
+    };
+    _renderFilterBar();
+    // ── end 篩選 tabs ─────────────────────────────────────────
 
     tableState.realEstate = { data: reGroups, page: 1, render: renderGroup };
     renderTablePage('realEstate');
