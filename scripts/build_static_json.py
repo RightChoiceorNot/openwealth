@@ -1385,10 +1385,12 @@ def main():
                     details_by_decl[t][winner_id] = details_by_decl[t][winner_id] + loser_items
 
         # 不動產：按 issue_number 從高到低合併（補正申報的正確值優先）
-        # issue 高的先加入，後續 issue 低的若同地號則跳過
+        # 変動申報 的不動產是「異動清單」，列的是已變動／已售的舊資產，不應與定期申報合併
+        re_losers = [dx for dx in sorted(non_change_losers, key=lambda x: -(x.get("issue_number") or 0))
+                     if dx.get("decl_type") != "變動申報"]
         details_by_decl["real_estate"].setdefault(winner_id, [])
         winner_re_keys = {_re_key(e) for e in details_by_decl["real_estate"][winner_id]}
-        for dx in sorted(non_change_losers, key=lambda x: -(x.get("issue_number") or 0)):
+        for dx in re_losers:
             loser_id = dx["id"]
             loser_re = details_by_decl["real_estate"].get(loser_id, [])
             new_re = [e for e in loser_re if _re_key(e) not in winner_re_keys]

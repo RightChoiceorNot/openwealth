@@ -1698,14 +1698,23 @@
     const nwsYear = nws && nws.money_decl_date_iso ? parseYear(nws.money_decl_date_iso) : null;
     const realEstateValue = (nws && nwsYear === year && includeFamily)
       ? (nws.total_real_estate || 0)
-      : allRealEstate.reduce((sum, r) => {
-          const ratio = parseRatio(r.ownership_ratio);
-          const price = parseFloat(r.price) || 0;
-          const est = parseFloat(r.estimated_price) || 0;
-          if (price) return sum + price;  // price 已是持分金額
-          if (est) return sum + est;
-          return sum;
-        }, 0);
+      : (() => {
+          const seenGroupPrice = {};
+          let reTotal = 0;
+          for (const r of allRealEstate) {
+            if ((r.lvr_source || '').startsWith('included_in')) continue;
+            const price = parseFloat(r.price) || 0;
+            const est = parseFloat(r.estimated_price) || 0;
+            if (price) {
+              const key = r._group_id != null ? r._group_id : (r.location || '').replace(/\s/g, '');
+              if (!seenGroupPrice[key]) seenGroupPrice[key] = new Set();
+              if (!seenGroupPrice[key].has(price)) { reTotal += price; seenGroupPrice[key].add(price); }
+            } else if (est) {
+              reTotal += est;
+            }
+          }
+          return reTotal;
+        })();
 
     // 交通工具總價（汽車 + 船舶 + 航空器 的 amount）
     const vehicleTypes = ['汽車', '船舶', '航空器'];
