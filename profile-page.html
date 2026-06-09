@@ -1857,7 +1857,8 @@
             le.acquisition_reason === be.acquisition_reason &&
             Math.abs((parseFloat(le.price) || 0) - (parseFloat(be.price) || 0)) < 1) {
           pairedIdx.add(li); pairedIdx.add(bi);
-          extraGroups.push({ section: le.location, category: '', is_pure_land: false, lands: [le], builds: [be] });
+          const _pairCat = be.valuation_category || le.valuation_category || '區分所有建物';
+          extraGroups.push({ section: le.location, category: _pairCat, is_pure_land: false, lands: [le], builds: [be] });
           break;
         }
       }
