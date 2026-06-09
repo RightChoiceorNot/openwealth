@@ -1,0 +1,62 @@
+name: Daily Data Update
+
+on:
+  schedule:
+    # 每天 18:30 台灣時間 (10:30 UTC)，台股收盤資料已就緒
+    - cron: '30 10 * * *'
+  workflow_dispatch:  # 允許手動觸發
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Fetch Taiwan stock prices (TWSE / TPEx / 興櫃)
+        run: python scripts/fetch_stock_prices.py
+        continue-on-error: true
+
+      - name: Fetch mutual fund NAVs (SITCA)
+        run: python scripts/fetch_fund_navs.py
+        continue-on-error: true
+
+      - name: Fetch US stock prices (Yahoo Finance)
+        run: python scripts/fetch_us_stocks.py
+        continue-on-error: true
+
+      - name: Rebuild static JSON from DB
+        run: |
+          if [ -f data/declarations.db ]; then
+            python scripts/build_static_json.py
+          else
+            echo "declarations.db not found, skipping rebuild"
+          fi
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet data/ || echo "has_changes=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add data/
+          git commit -m "chore: daily update $(date -u '+%Y-%m-%d')"
+          git push
