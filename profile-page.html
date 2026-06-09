@@ -1685,7 +1685,7 @@
           const ratio = parseRatio(r.ownership_ratio);
           const price = parseFloat(r.price) || 0;
           const est = parseFloat(r.estimated_price) || 0;
-          if (price && ratio) return sum + ratio * price;
+          if (price) return sum + price;  // price 已是持分金額
           if (est) return sum + est;
           return sum;
         }, 0);
@@ -1961,13 +1961,9 @@
         const est = parseFloat(e.estimated_price) || 0;
         if (price > 0) withPrice++;
         else if (est > 0) withEstimate++;
-        if (ratio !== null) {
-          stat[cls].area += area * ratio;
-          stat[cls].value += (price ? price * ratio : 0) + est;
-        } else {
-          stat[cls].area += area;
-          stat[cls].value += est;
-        }
+        // area 依持分比計算顯示面積；price/est 均已是持分金額，不再乘 ratio
+        stat[cls].area += ratio !== null ? area * ratio : area;
+        stat[cls].value += price || est;
       });
       const fmtArea = fmtAreaSmart;
       const fmtVal  = n => n ? `${formatNumber(n)} 元` : '—';
@@ -2022,7 +2018,7 @@
       const rawPrice = parseFloat(e.price) || 0;
       const price = rawPrice > NOMINAL_PRICE_MAX ? rawPrice : 0;  // 名目價格視同無填
       const shareArea = (ratio !== null && area) ? ratio * area : (ratio === null ? area : null);
-      const shareValue = (ratio !== null && price) ? ratio * price : null;
+      const shareValue = price > 0 ? price : null;  // 取得價額已是持分金額
       const estPrice = parseFloat(e.estimated_price) || 0;
       const isBuilding = (e.estate_type || '') === '建物';
       const icon = isBuilding
