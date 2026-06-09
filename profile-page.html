@@ -1751,7 +1751,7 @@
     setVal('debtAmount', totalDebt);
     setVal('netAssets', netAssets);
 
-    populateRealEstateTable(allRealEstate, (nws && nwsYear === year) ? nws.total_real_estate : null);
+    populateRealEstateTable(allRealEstate, realEstateValue || null);
     populateSecuritiesTable(allSecurities);
     populateBusinessTable(allSecurities);
     populateDebtTable(allDebts);
