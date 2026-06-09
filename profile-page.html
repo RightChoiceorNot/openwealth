@@ -1280,7 +1280,6 @@
 
   <!-- Footer Info -->
   <div class="text-xs text-slate-400 py-4 leading-relaxed" style="max-width:560px;margin:0 auto;padding:16px;text-align:center">
-    <div>資料來源：監察院（由系統自動爬梳建檔，如有錯誤再請協助告知）</div>
     <div style="margin-top:6px;color:#94a3b8">
       ※「<span style="color:#7c3aed">實價估</span>」標示者為內政部實價登錄近期同段交易中位數估算，
       僅供參考，可能與實際取得價或當前市值有落差
@@ -1697,7 +1696,7 @@
     // 不動產持分總價：優先用後端預計算值（與列表頁數字一致）
     const nws = window.__netWorthSummary;
     const nwsYear = nws && nws.money_decl_date_iso ? parseYear(nws.money_decl_date_iso) : null;
-    const realEstateValue = (nws && nwsYear === year)
+    const realEstateValue = (nws && nwsYear === year && includeFamily)
       ? (nws.total_real_estate || 0)
       : allRealEstate.reduce((sum, r) => {
           const ratio = parseRatio(r.ownership_ratio);
@@ -1719,7 +1718,7 @@
 
     // 淨資產 = 所有資產 - 負債（保險不計入：PDF 無金額欄）
     // 若後端預計算的摘要年份與當前年份一致，直接使用後端數字確保與列表頁一致
-    const netAssets = (nws && nwsYear === year)
+    const netAssets = (nws && nwsYear === year && includeFamily)
       ? (nws.net_assets || 0)
       : totalDeposit + totalSecurities + totalCash
           + realEstateValue + totalVehicles + totalInvestment
