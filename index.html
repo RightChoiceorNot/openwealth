@@ -1189,8 +1189,7 @@
         const saved = sessionStorage.getItem('listState');
         if (saved) {
           const s = JSON.parse(saved);
-          // 1) restore 各欄位值
-          document.getElementById('searchInput').value = s.searchQuery || '';
+          // 1) restore 各欄位值（searchInput 不還原，返回時顯示全部）
           document.getElementById('orgTypeFilter').value = s.orgType || '';
           // 同步上方 chip 視覺狀態
           document.querySelectorAll('.org-chip').forEach(b => {
@@ -2202,7 +2201,7 @@
     }
     const stocks = Object.keys(lbSecData)
       .filter(k => lbGetBpmf(k) === lbBpmfFilter)
-      .sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      .sort((a, b) => (lbSecData[b] || []).length - (lbSecData[a] || []).length || a.localeCompare(b, 'zh-TW'));
     if (stocks.length === 0) {
       el.innerHTML = '<div class="lb-sf-placeholder">此注音無個股資料</div>';
       return;
