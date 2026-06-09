@@ -1556,10 +1556,10 @@ def main():
         total_debt = money_decl.get("total_debt") or sum(_to_num(d.get("balance")) for d in money_debts)
 
         # 不動產：Σ(持分比 × 取得價額)；沒填取得價額者用實價登錄估值
-        # 同一地點（同 location）的申報項目中，相同取得價額只計一次
-        # （避免區分所有建物主建物＋共有部分都填同一個房地總價而重複計算）
+        # 同一群組（同 _group_id）的申報項目中，相同取得價額只計一次
+        # （避免合購建物各筆因備注文字不同而 location key 不同，導致房地總價額重複累計）
         total_real_estate = 0.0
-        _seen_loc_price: dict = {}   # location → set of counted prices
+        _seen_group_price: dict = {}  # _group_id（或 location）→ set of counted prices
         for r in money_real_estate:
             # 已併入他項的不計（land included_in_build / build included_in_land）
             if (r.get("lvr_source") or "").startswith("included_in"):
@@ -1568,8 +1568,9 @@ def main():
             price = _to_num(r.get("price"))
             est = _to_num(r.get("estimated_price"))
             if ratio and price:
-                loc_key = re.sub(r"\s+", "", (r.get("location") or ""))
-                seen = _seen_loc_price.setdefault(loc_key, set())
+                gid = r.get("_group_id")
+                dedup_key = gid if gid is not None else re.sub(r"\s+", "", (r.get("location") or ""))
+                seen = _seen_group_price.setdefault(dedup_key, set())
                 if price not in seen:
                     total_real_estate += price   # price 已是持分金額，不再乘 ratio
                     seen.add(price)
