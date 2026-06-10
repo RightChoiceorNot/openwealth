@@ -896,13 +896,41 @@ def main():
         Return: list of {"land": [..], "build": [..], "section": str, "mapping": str}
         """
         from collections import defaultdict as _dd
-        by_section = _dd(lambda: {"land": [], "build": []})
         def _loc_key(loc_str):
             """去括號備註後作為分組 key：
             「東峰段(未能交付信託原因：自用房屋之坐落基地)」和
             「東峰段(未能交付信託原因：自用房屋)」應視為同一段。"""
             return re.sub(r"[（(].*?[）)]", "", (loc_str or "").strip()).strip()
+
+        # Pre-stage：「房地總價額」跨段或多筆配對
+        # 情境1：土地在「木柵段二小段」、建物在「木新里木新路」→ _loc_key 不同段，正常分組無法配對
+        # 情境2：都更後分配 1 土地 + 4 建物，各有不同持分/原因，Stage 1/2 無法歸為同組
+        # 做法：找出所有 location 含「房地總價」且有 price 的 entries，
+        #        按 price 分桶，若同一金額同時有土地+建物 → 先組成一個群組排除出後續分組
+        _fudai_buckets = _dd(lambda: {"land": [], "build": []})
         for r in r_list:
+            loc = (r.get("location") or "").strip()
+            price = r.get("price")
+            if price and "房地總價" in loc:
+                et = r.get("estate_type") or ""
+                if et == "土地":
+                    _fudai_buckets[price]["land"].append(r)
+                elif et == "建物":
+                    _fudai_buckets[price]["build"].append(r)
+        fudai_used = set()
+        groups = []
+        for price, bucket in _fudai_buckets.items():
+            fl, fb = bucket["land"], bucket["build"]
+            if fl and fb:
+                groups.append({"land": fl, "build": fb,
+                               "section": f"_fudai_{int(price)}", "mapping": "fudai_price_group"})
+                for r in fl + fb:
+                    fudai_used.add(id(r))
+
+        by_section = _dd(lambda: {"land": [], "build": []})
+        for r in r_list:
+            if id(r) in fudai_used:
+                continue  # 已由 pre-stage 處理
             loc = (r.get("location") or "").strip()
             if not loc:
                 continue
@@ -913,7 +941,6 @@ def main():
             elif et == "建物":
                 by_section[key]["build"].append(r)
 
-        groups = []
         for loc, items in by_section.items():
             lands = list(items["land"])
             builds = list(items["build"])
@@ -1256,26 +1283,49 @@ def main():
             # 任務二「購地自建加總法」：若已有 price，全部加總；不再 LVR 估值
             has_any_price = any((e.get("price") or 0) > 0 for e in group["land"] + group["build"])
             cnt = 0
-            for e in group["land"] + group["build"]:
-                e["valuation_category"] = "複合型 (購地自建)"
-                if not has_any_price:
-                    # 沒 price 才估
+            if not has_any_price:
+                # 估值策略：台灣 house LVR 單價已含土地成分，不能同時加土地 land_only
+                # → 有建物且有 house LVR：建物估算，土地標 included_in_build
+                # → 無 house LVR（農牧地等）：土地估算，建物標 included_in_land
+                build_stats = _lvr_lookup_one(city, township, section, "house", min_count=1) \
+                              if group["build"] else None
+                land_stats = None if build_stats else (
+                    _lvr_lookup_one(city, township, section, "land_only", min_count=1) or
+                    _lvr_lookup_one(city, township, section, "townhouse_land", min_count=1)
+                )
+                for e in group["land"] + group["build"]:
+                    e["valuation_category"] = "複合型 (購地自建)"
                     et = e.get("estate_type")
-                    if et == "建物":
-                        stats = _lvr_lookup_one(city, township, section, "house", min_count=1)
-                    else:
-                        stats = _lvr_lookup_one(city, township, section, "land_only", min_count=1) or \
-                                _lvr_lookup_one(city, township, section, "townhouse_land", min_count=1)
-                    if stats:
-                        area = float(e.get("area") or 0)
-                        ratio = _ratio(e.get("ownership_ratio"))
-                        max_eff = _MAX_BUILD_EFF if e.get("estate_type") == "建物" else _MAX_LAND_EFF
+                    area = float(e.get("area") or 0)
+                    ratio = _ratio(e.get("ownership_ratio"))
+                    max_eff = _MAX_BUILD_EFF if et == "建物" else _MAX_LAND_EFF
+                    if build_stats and et == "建物":
                         if area > 0 and ratio > 0 and area * ratio <= max_eff:
-                            e["estimated_price"] = int(area * ratio * stats["median"])
-                            e["lvr_unit_price"] = stats["median"]
-                            e["lvr_sample_count"] = stats["count"]
-                            e["lvr_source"] = "complex_" + ("build" if et == "建物" else "land")
+                            e["estimated_price"] = int(area * ratio * build_stats["median"])
+                            e["lvr_unit_price"] = build_stats["median"]
+                            e["lvr_sample_count"] = build_stats["count"]
+                            e["lvr_source"] = "complex_build"
                             cnt += 1
+                    elif build_stats and et == "土地":
+                        # house LVR 已含地價，土地端不另估
+                        e["estimated_price"] = 0
+                        e["lvr_source"] = "included_in_build"
+                        e["valuation_note"] = "土地已併入建物估算（house LVR 含地價）"
+                    elif land_stats and et == "土地":
+                        if area > 0 and ratio > 0 and area * ratio <= max_eff:
+                            e["estimated_price"] = int(area * ratio * land_stats["median"])
+                            e["lvr_unit_price"] = land_stats["median"]
+                            e["lvr_sample_count"] = land_stats["count"]
+                            e["lvr_source"] = "complex_land"
+                            cnt += 1
+                    elif land_stats and et == "建物":
+                        # 無 house LVR，建物端不另估
+                        e["estimated_price"] = 0
+                        e["lvr_source"] = "included_in_land"
+                        e["valuation_note"] = "建物已併入土地估算"
+            else:
+                for e in group["land"] + group["build"]:
+                    e["valuation_category"] = "複合型 (購地自建)"
             return cnt, cat
 
         return 0, cat
