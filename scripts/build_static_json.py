@@ -1372,6 +1372,16 @@ def main():
                 apply_price_logic(g)
             # 無 price 的 entries 走估值 (price 已存的不覆寫)
             cnt, cat = value_group(g)
+            # fudai_price_group 的 section="_fudai_N" 無法被 _parse_re_loc 解析，
+            # value_group 提早返回 no_section 未設 valuation_category；補上類別標籤
+            if cat == "no_section":
+                _fb = detect_category(g)
+                _fb_label = {"apartment": "區分所有建物", "townhouse": "透天/別墅",
+                             "land_only": "純土地", "complex": "複合型 (購地自建)"}.get(_fb, "")
+                if _fb_label:
+                    for e in g["land"] + g["build"]:
+                        if not e.get("valuation_category"):
+                            e["valuation_category"] = _fb_label
             cat_stats[cat] += 1
             re_enriched += cnt
             # 寫入群組 ID（前台用此做分群，確保 Python 分組結果在顯示層忠實呈現）

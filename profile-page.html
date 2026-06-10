@@ -1658,10 +1658,13 @@
     const allRealEstate = [];
     const allDebts = [];
     const allOther = [];
+    const hasRegularDecl = inYear.some(d => !d.is_change);
     for (const decl of inYear) {
       if (decl.deposits) allDeposits.push(...ownIfStrict(decl.deposits));
       if (decl.securities) allSecurities.push(...ownIfStrict(decl.securities));
-      if (decl.real_estate) allRealEstate.push(...ownIfStrict(decl.real_estate));
+      // 若同年已有定期申報，跳過変動申報的不動產明細，避免同一筆房地重複顯示
+      if ((!hasRegularDecl || !decl.is_change) && decl.real_estate)
+        allRealEstate.push(...ownIfStrict(decl.real_estate));
       if (decl.debts) allDebts.push(...ownIfStrict(decl.debts));
       if (decl.other_assets) allOther.push(...ownIfStrict(decl.other_assets));
     }
