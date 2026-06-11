@@ -2058,7 +2058,8 @@
       const iconBg = isBuilding ? 'bg-amber-50' : 'bg-teal-50';
       const src = e.lvr_source || '';
       const mainPriceText = shareValue
-        ? `<div class="num text-slate-900 font-bold text-base whitespace-nowrap">${formatNumber(shareValue)}</div>`
+        ? `<div class="num text-slate-900 font-bold text-base whitespace-nowrap">${formatNumber(shareValue)}</div>
+           <div class="text-[10px] text-slate-400 mt-0.5 text-right">(申報)</div>`
         : (estPrice
             ? `<div class="num text-purple-600 font-bold text-base whitespace-nowrap">${formatNumber(estPrice)}</div>
                <div class="text-[10px] text-purple-500 mt-0.5 text-right">(實價估)</div>`
@@ -2150,8 +2151,9 @@
       if (total > 0) {
         const isEst = hasEst && !hasDecl;
         const isMixed = hasEst && hasDecl;
-        const priceTag = isEst ? `<div class="text-[10px] text-purple-500 mt-0.5 text-right">(實價估)</div>`
-                       : isMixed ? `<div class="text-[10px] text-slate-400 mt-0.5 text-right">(部分估)</div>` : '';
+        const priceTag = isEst    ? `<div class="text-[10px] text-purple-500 mt-0.5 text-right">(實價估)</div>`
+                       : isMixed  ? `<div class="text-[10px] text-slate-400 mt-0.5 text-right">(部分估)</div>`
+                       : hasDecl  ? `<div class="text-[10px] text-slate-400 mt-0.5 text-right">(申報)</div>` : '';
         priceHtml = `<div class="num ${isEst ? 'text-purple-600' : 'text-slate-900'} font-bold text-base whitespace-nowrap">${formatNumber(total)}</div>${priceTag}`;
       }
 
