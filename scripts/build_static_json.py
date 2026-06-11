@@ -1281,7 +1281,7 @@ def main():
         if cat == "complex":
             # 複合型 (Stage 3 fallback)：自地自建 / 農牧場 / 多筆混合
             # 任務二「購地自建加總法」：若已有 price，全部加總；不再 LVR 估值
-            has_any_price = any((e.get("price") or 0) > 0 for e in group["land"] + group["build"])
+            has_any_price = any(float(e.get("price") or 0) > 1000 for e in group["land"] + group["build"])  # NOMINAL_PRICE_MAX
             cnt = 0
             if not has_any_price:
                 # 估值策略：台灣 house LVR 單價已含土地成分，不能同時加土地 land_only
@@ -1629,7 +1629,7 @@ def main():
             ratio = parse_ratio(r.get("ownership_ratio"))
             price = _to_num(r.get("price"))
             est = _to_num(r.get("estimated_price"))
-            if ratio and price:
+            if ratio and price > 1000:   # NOMINAL_PRICE_MAX=1000：名目價格(贈與100元/信託100元等)視同無填
                 gid = r.get("_group_id")
                 dedup_key = gid if gid is not None else re.sub(r"\s+", "", (r.get("location") or ""))
                 seen = _seen_group_price.setdefault(dedup_key, set())
