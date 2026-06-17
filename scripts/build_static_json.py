@@ -1562,7 +1562,8 @@ def main():
                 "total_debt": d.get("total_debt"),
                 "deposits": details_by_decl["deposits"].get(decl_id, []),
                 "securities": details_by_decl["securities"].get(decl_id, []),
-                "real_estate": details_by_decl["real_estate"].get(decl_id, []),
+                "real_estate": [e for e in details_by_decl["real_estate"].get(decl_id, [])
+                                if not (e.get("price_attributed") == 0 and not e.get("area"))],
                 "debts": details_by_decl["debts"].get(decl_id, []),
                 "other_assets": details_by_decl["other_assets"].get(decl_id, []),
             }
