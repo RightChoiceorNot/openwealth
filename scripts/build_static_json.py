@@ -802,6 +802,9 @@ def main():
 
         def _nkey(r):
             loc = re.sub(r"[（(].*?[）)]", "", (r.get("location") or "")).strip()
+            # ownership_ratio 空白正規化：DB 中「100000 分 之179」與「100000分之179」
+            # 是同一持分，若不正規化會導致跨欄（申報本欄 vs 信託申報）同地號無法去重
+            ratio = re.sub(r"\s+", "", (r.get("ownership_ratio") or ""))
             # ownership_ratio 也納入 key：同一筆地在三個申報欄位持分相同，仍會正確去重；
             # 但同段地不同地號（持分各異）不能合併，否則多筆真實地號會被砍成一筆
             return (
@@ -809,7 +812,7 @@ def main():
                 loc,
                 str(r.get("area") or ""),
                 str(r.get("owner") or ""),
-                str(r.get("ownership_ratio") or ""),
+                ratio,
             )
 
         by_key = _dd2(list)
@@ -1450,6 +1453,7 @@ def main():
                      if dx.get("decl_type") != "變動申報"]
         details_by_decl["real_estate"].setdefault(winner_id, [])
         winner_re_keys = {_re_key(e) for e in details_by_decl["real_estate"][winner_id]}
+        re_merged = False
         for dx in re_losers:
             loser_id = dx["id"]
             loser_re = details_by_decl["real_estate"].get(loser_id, [])
@@ -1458,6 +1462,13 @@ def main():
                 details_by_decl["real_estate"][winner_id] = \
                     details_by_decl["real_estate"][winner_id] + new_re
                 winner_re_keys.update(_re_key(e) for e in new_re)
+                re_merged = True
+        # 合併後重跑跨欄去重：定期申報（申報本欄）與信託申報為不同 decl_id，合併後
+        # 同一筆地可能同時有「申報本欄(stype1)」和「信託申報(stype3)」版本，以信託版本為主
+        if re_merged:
+            combined = details_by_decl["real_estate"].get(winner_id, [])
+            if combined:
+                details_by_decl["real_estate"][winner_id] = _dedup_re_list(combined)
     if drop_ids:
         all_decls = [d for d in all_decls if d["id"] not in drop_ids]
         print(f"  merged+dropped {len(drop_ids)} 補正/重刊/信託 decls (same date → merged into larger version)")
