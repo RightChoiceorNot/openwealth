@@ -1025,14 +1025,16 @@ def main():
 
             # Stage 2.6: 自用房屋坐落基地 ↔ 自用房屋建物配對
             # 土地 location 含「自用房屋」且 建物 location 含「自用房屋」→ 同段配對
+            # 若建物無「自用房屋」標注（早期申報格式），fallback 至同段所有剩餘建物
             rem_l26 = [l for l in lands if id(l) not in used]
             rem_b26 = [b for b in builds if id(b) not in used]
             self_l = [l for l in rem_l26 if re.search(r"自用房屋", (l.get("location") or ""))]
             self_b = [b for b in rem_b26 if re.search(r"自用房屋", (b.get("location") or ""))]
-            if self_l and self_b:
-                groups.append({"land": self_l, "build": self_b,
+            match_b = self_b if self_b else rem_b26
+            if self_l and match_b:
+                groups.append({"land": self_l, "build": match_b,
                                "section": loc, "mapping": "jiyutaku"})
-                for e in self_l + self_b:
+                for e in self_l + match_b:
                     used.add(id(e))
 
             # Stage 2.7: 信託申報中，同段同持分的剩餘土地併入已有群組
