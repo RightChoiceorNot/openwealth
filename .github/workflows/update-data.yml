@@ -38,6 +38,19 @@ jobs:
         run: python scripts/fetch_us_stocks.py
         continue-on-error: true
 
+      - name: Fetch LVR (實價登錄) quarterly data
+        run: python scripts/fetch_lvr.py
+        continue-on-error: true
+
+      - name: Rebuild LVR section-price index
+        run: |
+          count=$(find data/lvr -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+          if [ "$count" -ge 6 ]; then
+            python scripts/build_lvr_index.py
+          else
+            echo "[WARN] only $count/8 LVR quarters downloaded (fetch_lvr.py may have failed) — skipping index rebuild to avoid overwriting good data with an incomplete index"
+          fi
+
       - name: Rebuild static JSON from DB
         run: |
           if [ -f data/declarations.db ]; then
